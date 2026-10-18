@@ -1,0 +1,133 @@
+// Inventory: stock ledger + stock documents (opening stock, adjustments).
+// Rule: stock changes ONLY through StockMovement rows. Rows are never edited or deleted —
+// a mistake is fixed by cancelling the document, which adds reversing rows.
+
+enum MovementType {
+  OPENING
+  ADJUSTMENT_IN
+  ADJUSTMENT_OUT
+  PURCHASE // Module: purchase
+  PURCHASE_RETURN
+  SALE // Module: billing
+  SALE_RETURN
+  JOB_CONSUMPTION // Module: stitching jobs
+  PRODUCTION_IN // Module: production
+  PRODUCTION_OUT
+  CANCELLATION // reversal of a cancelled document's rows
+
+  @@map("movement_type")
+}
+
+/// One row per stock change of one variant. qty is signed (+ in, − out).
+model StockMovement {
+  id           BigInt         @id @default(autoincrement())
+  variantId    Int            @map("variant_id")
+  variant      ProductVariant @relation(fields: [variantId], references: [id], onDelete: Restrict)
+  type         MovementType
+  qty          Decimal        @db.Decimal(14, 3)
+  unitCost     Decimal        @map("unit_cost") @db.Decimal(14, 4) // cost per unit of THIS movement
+  value        Decimal        @db.Decimal(16, 2) // signed qty × unitCost
+  balanceQty   Decimal        @map("balance_qty") @db.Decimal(14, 3) // stock after this row
+  balanceValue Decimal        @map("balance_value") @db.Decimal(16, 2)
+  // Source document (e.g. "ADJ", 12, "ADJ/2026-27/0012") — links the ledger back to its reason.
+  refType      String         @map("ref_type") @db.VarChar(20)
+  refId        Int            @map("ref_id")
+  refNo        String         @map("ref_no") @db.VarChar(30)
+  note         String?        @db.VarChar(255)
+  movementDate DateTime       @map("movement_date") @db.Date
+  createdBy    String         @map("created_by") @db.VarChar(50)
+  createdAt    DateTime       @default(now()) @map("created_at")
+
+  @@index([variantId, id])
+  @@index([refType, refId])
+  @@index([movementDate])
+  @@map("stock_movements")
+}
+
+enum StockDocumentKind {
+  OPENING
+  ADJUSTMENT
+
+  @@map("stock_document_kind")
+}
+
+enum StockDocumentStatus {
+  POSTED
+  CANCELLED
+
+  @@map("stock_document_status")
+}
+
+enum AdjustmentReason {
+  OPENING
+  DAMAGED
+  LOST
+  FOUND
+  COUNT_CORRECTION
+  SAMPLE
+  OTHER
+
+  @@map("adjustment_reason")
+}
+
+/// Opening stock / stock adjustment document (OPN/2026-27/0001, ADJ/2026-27/0001).
+model StockDocument {
+  id           Int                 @id @default(autoincrement())
+  docNo        String              @unique @map("doc_no") @db.VarChar(30)
+  kind         StockDocumentKind
+  status       StockDocumentStatus @default(POSTED)
+  reason       AdjustmentReason
+  docDate      DateTime            @map("doc_date") @db.Date
+  note         String?             @db.VarChar(500)
+  totalValue   Decimal             @default(0) @map("total_value") @db.Decimal(16, 2) // signed
+  lines        StockDocumentLine[]
+  createdBy    String              @map("created_by") @db.VarChar(50)
+  createdAt    DateTime            @default(now()) @map("created_at")
+  cancelledBy  String?             @map("cancelled_by") @db.VarChar(50)
+  cancelledAt  DateTime?           @map("cancelled_at")
+  cancelReason String?             @map("cancel_reason") @db.VarChar(255)
+
+  @@index([kind, docDate])
+  @@map("stock_documents")
+}
+
+model StockDocumentLine {
+  id         Int            @id @default(autoincrement())
+  documentId Int            @map("document_id")
+  document   StockDocument  @relation(fields: [documentId], references: [id], onDelete: Restrict)
+  variantId  Int            @map("variant_id")
+  variant    ProductVariant @relation(fields: [variantId], references: [id], onDelete: Restrict)
+  qty        Decimal        @db.Decimal(14, 3) // signed change
+  unitCost   Decimal        @map("unit_cost") @db.Decimal(14, 4)
+  value      Decimal        @db.Decimal(16, 2)
+
+  @@index([documentId])
+  @@index([variantId])
+  @@map("stock_document_lines")
+}
+
+/// App-wide settings as key → JSON value (e.g. inventory.allowNegativeStock).
+model AppSetting {
+  key       String   @id @db.VarChar(60)
+  value     Json
+  updatedBy String?  @map("updated_by") @db.VarChar(50)
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("app_settings")
+}
+
+/// Who did what, when (SRS §19). Append-only.
+model AuditLog {
+  id       BigInt   @id @default(autoincrement())
+  at       DateTime @default(now())
+  actor    String   @db.VarChar(50)
+  action   String   @db.VarChar(40) // e.g. "stock_document.post"
+  entity   String   @db.VarChar(40)
+  entityId String   @map("entity_id") @db.VarChar(40)
+  summary  String   @db.VarChar(255)
+  details  Json?
+
+  @@index([entity, entityId])
+  @@index([at])
+  @@map("audit_logs")
+}

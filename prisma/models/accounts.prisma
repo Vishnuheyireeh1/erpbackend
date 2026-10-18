@@ -1,0 +1,61 @@
+// Accounts (double entry). Almost every entry is made AUTOMATICALLY from the documents staff already save
+// (bills, jobs, receipts, purchases, payments, expenses, salary, fees …) — see services/accounts/postings.sql.ts.
+// Stored here only: accounts the owner / CA add (machines, loans …) and their own journal entries.
+
+enum AccountKind {
+  ASSET
+  LIABILITY
+  EQUITY // owner's capital
+  INCOME
+  DIRECT_EXPENSE // cost of making / selling (gross profit)
+  INDIRECT_EXPENSE // shop running cost
+}
+
+/// An account added by the owner / CA (the built-in ones — cash, bank, stock, sales … — live in code).
+model LedgerAccount {
+  id        Int         @id @default(autoincrement())
+  code      String      @unique @db.VarChar(20) // e.g. 19001 (auto)
+  name      String      @unique @db.VarChar(80)
+  kind      AccountKind
+  notes     String?     @db.VarChar(255)
+  isActive  Boolean     @default(true) @map("is_active")
+  createdAt DateTime    @default(now()) @map("created_at")
+  updatedAt DateTime    @updatedAt @map("updated_at")
+
+  @@map("ledger_accounts")
+}
+
+/// A journal entry (JV/2026-27/0001) by the owner / CA: capital brought in, machine bought, depreciation, loans …
+/// Debits = credits. Never edited — cancelled with a reason.
+model JournalEntry {
+  id           Int           @id @default(autoincrement())
+  docNo        String        @unique @map("doc_no") @db.VarChar(30)
+  docDate      DateTime      @map("doc_date") @db.Date
+  narration    String        @db.VarChar(255)
+  total        Decimal       @db.Decimal(14, 2) // = total debit = total credit
+  status       DocStatus     @default(POSTED)
+  lines        JournalLine[]
+  createdBy    String        @map("created_by") @db.VarChar(50)
+  createdAt    DateTime      @default(now()) @map("created_at")
+  cancelledBy  String?       @map("cancelled_by") @db.VarChar(50)
+  cancelledAt  DateTime?     @map("cancelled_at")
+  cancelReason String?       @map("cancel_reason") @db.VarChar(255)
+
+  @@index([docDate])
+  @@map("journal_entries")
+}
+
+model JournalLine {
+  id          Int          @id @default(autoincrement())
+  entryId     Int          @map("entry_id")
+  entry       JournalEntry @relation(fields: [entryId], references: [id], onDelete: Restrict)
+  accountCode String       @map("account_code") @db.VarChar(20) // built-in (1000 Cash …) or a LedgerAccount code
+  debit       Decimal      @default(0) @db.Decimal(14, 2)
+  credit      Decimal      @default(0) @db.Decimal(14, 2)
+  note        String?      @db.VarChar(120)
+  sortOrder   Int          @default(0) @map("sort_order")
+
+  @@index([entryId])
+  @@index([accountCode])
+  @@map("journal_lines")
+}

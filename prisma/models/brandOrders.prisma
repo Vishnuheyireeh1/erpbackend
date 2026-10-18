@@ -1,0 +1,107 @@
+// Brand orders (BRO/2026-27/0001) — another brand's order that Sairandhri stitches with the brand's label.
+// Each piece has its own end customer, measurements, rate and tailor. Pieces are billed to the brand when delivered
+// (a bill per delivery, GST chosen on that bill), so the order itself is not a bill.
+
+enum BrandOrderStatus {
+  OPEN // pieces still to deliver
+  COMPLETED // every piece delivered
+  CANCELLED
+
+  @@map("brand_order_status")
+}
+
+enum BrandPieceStage {
+  IN_WORK
+  READY // tailor's per-piece pay counts as earned from here
+  DELIVERED // on a delivery bill
+
+  @@map("brand_piece_stage")
+}
+
+model BrandOrder {
+  id           Int              @id @default(autoincrement())
+  docNo        String           @unique @map("doc_no") @db.VarChar(30)
+  brandId      Int              @map("brand_id")
+  brand        PartnerBrand     @relation(fields: [brandId], references: [id], onDelete: Restrict)
+  brandName    String           @map("brand_name") @db.VarChar(120) // snapshot
+  theirOrderNo String?          @map("their_order_no") @db.VarChar(40) // the brand's own order / PO number
+  docDate      DateTime         @map("doc_date") @db.Date // order received
+  expectedDate DateTime         @map("expected_date") @db.Date // promised to the brand
+  labelNote    String?          @map("label_note") @db.VarChar(300) // e.g. "brand label at back neck"
+  notes        String?          @db.VarChar(1000)
+  status       BrandOrderStatus @default(OPEN)
+  createdBy    String           @map("created_by") @db.VarChar(50)
+  createdAt    DateTime         @default(now()) @map("created_at")
+  updatedAt    DateTime         @updatedAt @map("updated_at")
+  cancelledBy  String?          @map("cancelled_by") @db.VarChar(50)
+  cancelledAt  DateTime?        @map("cancelled_at")
+  cancelReason String?          @map("cancel_reason") @db.VarChar(255)
+
+  items        BrandOrderItem[]
+  materials    BrandOrderMaterial[]
+  bills        BrandBill[]
+  clothEntries BrandClothEntry[]
+
+  @@index([brandId])
+  @@index([status, expectedDate])
+  @@index([docDate])
+  @@map("brand_orders")
+}
+
+/// One garment line: 1 × Blouse for "Priya", ₹350 a piece, tailor Ramesh ₹120 a piece.
+model BrandOrderItem {
+  id            Int             @id @default(autoincrement())
+  orderId       Int             @map("order_id")
+  order         BrandOrder      @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  garmentTypeId Int             @map("garment_type_id")
+  garmentType   GarmentType     @relation(fields: [garmentTypeId], references: [id], onDelete: Restrict)
+  description   String          @db.VarChar(200)
+  endCustomer   String?         @map("end_customer") @db.VarChar(120) // the brand's customer this piece is for
+  qty           Int             @default(1)
+  chargeRate    Decimal         @map("charge_rate") @db.Decimal(12, 2) // per piece to the brand, GST included
+  brandCloth    Boolean         @default(false) @map("brand_cloth") // the brand gave the cloth (not our stock)
+  measurements  Json            @default("{}")
+  instructions  String?         @db.VarChar(1000)
+  tailorId      Int?            @map("tailor_id")
+  tailor        Tailor?         @relation(fields: [tailorId], references: [id], onDelete: Restrict)
+  labourRate    Decimal         @default(0) @map("labour_rate") @db.Decimal(12, 2) // per piece to the tailor
+  stage         BrandPieceStage @default(IN_WORK)
+  readyOn       DateTime?       @map("ready_on") @db.Date // tailor pay earned on this day
+  billId        Int?            @map("bill_id") // delivery bill it went on
+  bill          BrandBill?      @relation(fields: [billId], references: [id], onDelete: SetNull)
+  sortOrder     Int             @default(0) @map("sort_order")
+
+  materials BrandOrderMaterial[]
+
+  @@index([orderId])
+  @@index([tailorId])
+  @@index([billId])
+  @@map("brand_order_items")
+}
+
+/// Cloth / lining from OUR stock for a piece — stock OUT when added. charged = billed to the brand with the piece
+/// (cost of goods), else used free for the stitching (material used).
+model BrandOrderMaterial {
+  id          Int            @id @default(autoincrement())
+  orderId     Int            @map("order_id")
+  order       BrandOrder     @relation(fields: [orderId], references: [id], onDelete: Restrict)
+  itemId      Int            @map("item_id")
+  item        BrandOrderItem @relation(fields: [itemId], references: [id], onDelete: Restrict)
+  variantId   Int            @map("variant_id")
+  variant     ProductVariant @relation(fields: [variantId], references: [id], onDelete: Restrict)
+  description String         @db.VarChar(200)
+  hsnCode     String?        @map("hsn_code") @db.VarChar(8)
+  qty         Decimal        @db.Decimal(14, 3)
+  unitCost    Decimal        @map("unit_cost") @db.Decimal(14, 4)
+  charged     Boolean        @default(true)
+  rate        Decimal        @default(0) @db.Decimal(12, 2) // per unit to the brand, GST included
+  discountPct Decimal        @default(0) @map("discount_pct") @db.Decimal(5, 2)
+  amount      Decimal        @default(0) @db.Decimal(14, 2) // billed amount after discount (0 when not charged)
+  createdBy   String         @map("created_by") @db.VarChar(50)
+  createdAt   DateTime       @default(now()) @map("created_at")
+
+  @@index([orderId])
+  @@index([itemId])
+  @@index([variantId])
+  @@map("brand_order_materials")
+}

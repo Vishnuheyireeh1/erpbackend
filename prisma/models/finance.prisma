@@ -1,0 +1,88 @@
+// Finance: shop expenses, money moved between cash and bank (or by the owner), daily cash tally.
+// Money in / out from other modules (receipts, refunds, supplier / tailor payments, paid job costs) is read
+// straight from their own tables for the day book — nothing is copied.
+// Accounts: CASH mode = cash in hand; UPI / CARD / BANK / CHEQUE = bank.
+
+enum ExpenseKind {
+  INDIRECT // shop running cost: rent, electricity, tea …
+  DIRECT // cost of making / buying goods not tied to one job (e.g. freight inward, packing material)
+  ASSET // lasts years (AC, stitching machine, furniture) → what the shop owns (balance sheet), not a cost
+}
+
+model ExpenseCategory {
+  id        Int         @id @default(autoincrement())
+  name      String      @unique @db.VarChar(60)
+  kind      ExpenseKind @default(INDIRECT)
+  sortOrder Int         @default(0) @map("sort_order")
+  isActive  Boolean     @default(true) @map("is_active")
+  expenses  Expense[]
+
+  @@map("expense_categories")
+}
+
+/// A shop expense (EXP/2026-27/0001). Never edited — cancelled with a reason.
+model Expense {
+  id           Int             @id @default(autoincrement())
+  docNo        String          @unique @map("doc_no") @db.VarChar(30)
+  docDate      DateTime        @map("doc_date") @db.Date
+  categoryId   Int             @map("category_id")
+  category     ExpenseCategory @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  amount       Decimal         @db.Decimal(14, 2)
+  mode         PaymentMode
+  paidTo       String?         @map("paid_to") @db.VarChar(120)
+  reference    String?         @db.VarChar(60)
+  notes        String?         @db.VarChar(255)
+  status       DocStatus       @default(POSTED)
+  createdBy    String          @map("created_by") @db.VarChar(50)
+  createdAt    DateTime        @default(now()) @map("created_at")
+  cancelledBy  String?         @map("cancelled_by") @db.VarChar(50)
+  cancelledAt  DateTime?       @map("cancelled_at")
+  cancelReason String?         @map("cancel_reason") @db.VarChar(255)
+
+  @@index([docDate])
+  @@index([categoryId])
+  @@map("expenses")
+}
+
+enum MoneyMoveKind {
+  DEPOSIT // cash put into the bank (cash out, bank in)
+  WITHDRAW // cash taken from the bank (bank out, cash in)
+  OWNER_IN // owner puts money into the shop
+  OWNER_OUT // owner takes money for personal use
+  OTHER_INCOME // scrap sale, interest, rent received …
+}
+
+/// Money moved without a customer / supplier (MOV/2026-27/0001). mode = CASH or a bank mode.
+model MoneyMovement {
+  id           Int           @id @default(autoincrement())
+  docNo        String        @unique @map("doc_no") @db.VarChar(30)
+  docDate      DateTime      @map("doc_date") @db.Date
+  kind         MoneyMoveKind
+  amount       Decimal       @db.Decimal(14, 2)
+  mode         PaymentMode // for OWNER_IN / OWNER_OUT / OTHER_INCOME: cash or bank; DEPOSIT / WITHDRAW use BANK
+  reference    String?       @db.VarChar(60)
+  notes        String?       @db.VarChar(255)
+  status       DocStatus     @default(POSTED)
+  createdBy    String        @map("created_by") @db.VarChar(50)
+  createdAt    DateTime      @default(now()) @map("created_at")
+  cancelledBy  String?       @map("cancelled_by") @db.VarChar(50)
+  cancelledAt  DateTime?     @map("cancelled_at")
+  cancelReason String?       @map("cancel_reason") @db.VarChar(255)
+
+  @@index([docDate])
+  @@map("money_movements")
+}
+
+/// End-of-day cash count: what the system expects vs what was counted in the drawer.
+model CashTally {
+  id         Int      @id @default(autoincrement())
+  date       DateTime @unique @db.Date
+  expected   Decimal  @db.Decimal(14, 2)
+  counted    Decimal  @db.Decimal(14, 2)
+  difference Decimal  @db.Decimal(14, 2) // counted − expected (− = cash short)
+  note       String?  @db.VarChar(255)
+  createdBy  String   @map("created_by") @db.VarChar(50)
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  @@map("cash_tallies")
+}

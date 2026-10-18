@@ -1,0 +1,11 @@
+// Base schema: generator + datasource only.
+// Models live one-module-per-file in prisma/models/*.prisma
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}

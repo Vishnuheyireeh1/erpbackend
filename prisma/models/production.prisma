@@ -1,0 +1,91 @@
+// Production (Module 9): clothes the shop makes itself to sell (PRD/2026-27/0001).
+// Materials go OUT of stock at average cost; finished pieces come IN at
+//   cost per piece = (materials + per-piece tailor labour + costs paid out) ÷ pieces.
+// Salaried staff time is recorded for costing only — their salary is already an expense (never counted twice).
+
+enum ProductionCostKind {
+  TAILOR // per-piece tailor → added to the tailor's balance (earned on the production date)
+  PAID // paid out now (embroidery, dyeing, outside work …) → day book
+  SALARIED // cutting master / hand work on salary → costing info only, NOT in stock cost
+
+  @@map("production_cost_kind")
+}
+
+model ProductionOrder {
+  id           Int                  @id @default(autoincrement())
+  docNo        String               @unique @map("doc_no") @db.VarChar(30)
+  docDate      DateTime             @map("doc_date") @db.Date
+  title        String?              @db.VarChar(120) // "Onam kurti batch"
+  notes        String?              @db.VarChar(500)
+  status       DocStatus            @default(POSTED)
+  pieces       Decimal              @db.Decimal(14, 3) // total finished pieces
+  materialCost Decimal              @default(0) @map("material_cost") @db.Decimal(14, 2)
+  labourCost   Decimal              @default(0) @map("labour_cost") @db.Decimal(14, 2) // per-piece tailors
+  paidCost     Decimal              @default(0) @map("paid_cost") @db.Decimal(14, 2)
+  salariedCost Decimal              @default(0) @map("salaried_cost") @db.Decimal(14, 2) // info only
+  stockCost    Decimal              @map("stock_cost") @db.Decimal(14, 2) // material + labour + paid
+  createdBy    String               @map("created_by") @db.VarChar(50)
+  createdAt    DateTime             @default(now()) @map("created_at")
+  cancelledBy  String?              @map("cancelled_by") @db.VarChar(50)
+  cancelledAt  DateTime?            @map("cancelled_at")
+  cancelReason String?              @map("cancel_reason") @db.VarChar(255)
+  outputs      ProductionOutput[]
+  materials    ProductionMaterial[]
+  costs        ProductionCost[]
+
+  @@index([docDate])
+  @@map("production_orders")
+}
+
+/// Finished pieces made (stock IN).
+model ProductionOutput {
+  id        Int             @id @default(autoincrement())
+  orderId   Int             @map("order_id")
+  order     ProductionOrder @relation(fields: [orderId], references: [id], onDelete: Restrict)
+  variantId Int             @map("variant_id")
+  variant   ProductVariant  @relation("ProductionOutputs", fields: [variantId], references: [id], onDelete: Restrict)
+  qty       Decimal         @db.Decimal(14, 3)
+  unitCost  Decimal         @map("unit_cost") @db.Decimal(14, 4)
+  sortOrder Int             @default(0) @map("sort_order")
+
+  @@index([orderId])
+  @@index([variantId])
+  @@map("production_outputs")
+}
+
+/// Shop stock used (stock OUT at average cost at that time).
+model ProductionMaterial {
+  id        Int             @id @default(autoincrement())
+  orderId   Int             @map("order_id")
+  order     ProductionOrder @relation(fields: [orderId], references: [id], onDelete: Restrict)
+  variantId Int             @map("variant_id")
+  variant   ProductVariant  @relation("ProductionMaterials", fields: [variantId], references: [id], onDelete: Restrict)
+  qty       Decimal         @db.Decimal(14, 3)
+  unitCost  Decimal         @map("unit_cost") @db.Decimal(14, 4)
+  sortOrder Int             @default(0) @map("sort_order")
+
+  @@index([orderId])
+  @@index([variantId])
+  @@map("production_materials")
+}
+
+/// Making costs: tailor per piece, paid out, salaried (info).
+model ProductionCost {
+  id          Int                @id @default(autoincrement())
+  orderId     Int                @map("order_id")
+  order       ProductionOrder    @relation(fields: [orderId], references: [id], onDelete: Restrict)
+  kind        ProductionCostKind
+  description String             @db.VarChar(120)
+  tailorId    Int?               @map("tailor_id")
+  tailor      Tailor?            @relation(fields: [tailorId], references: [id], onDelete: Restrict)
+  qty         Decimal?           @db.Decimal(14, 3) // pieces (tailor)
+  rate        Decimal?           @db.Decimal(12, 2) // per piece (tailor)
+  amount      Decimal            @db.Decimal(14, 2)
+  mode        PaymentMode? // PAID only
+  reference   String?            @db.VarChar(60)
+  sortOrder   Int                @default(0) @map("sort_order")
+
+  @@index([orderId])
+  @@index([tailorId])
+  @@map("production_costs")
+}

@@ -1,0 +1,218 @@
+// Stitching jobs (JOB/2026-27/2574). The job is the customer's bill from the day it is booked:
+// its total is owed at once; the advance and later payments come in as receipts allocated to it.
+// Editable until delivered (every change audited); after that only alteration jobs or cancellation.
+
+enum JobStatus {
+  PENDING
+  CUTTING
+  STITCHING
+  TRIAL // trial / alteration before handing over
+  READY // tailor labour counts as earned from here
+  DELIVERED
+  CANCELLED
+}
+
+model StitchingJob {
+  id             Int            @id @default(autoincrement())
+  docNo          String         @unique @map("doc_no") @db.VarChar(30)
+  customerId     Int            @map("customer_id")
+  customer       Customer       @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  customerName   String         @map("customer_name") @db.VarChar(120) // snapshot printed on the bill
+  customerPhone  String?        @map("customer_phone") @db.VarChar(20)
+  docDate        DateTime       @map("doc_date") @db.Date // order date
+  expectedDate   DateTime       @map("expected_date") @db.Date // promised delivery
+  bookNo         String?        @map("book_no") @db.VarChar(30) // number from the paper order book (optional)
+  status         JobStatus      @default(PENDING)
+  parentJobId    Int?           @map("parent_job_id") // alteration of an earlier job
+  parentJob      StitchingJob?  @relation("JobAlterations", fields: [parentJobId], references: [id], onDelete: Restrict)
+  alterations    StitchingJob[] @relation("JobAlterations")
+  taxMode        TaxMode        @map("tax_mode")
+  gstRate        Decimal        @default(0) @map("gst_rate") @db.Decimal(5, 2) // 0 = no GST on this job
+  chargeTotal    Decimal        @default(0) @map("charge_total") @db.Decimal(14, 2) // all charges, GST included
+  discount       Decimal        @default(0) @db.Decimal(14, 2)
+  taxableTotal   Decimal        @default(0) @map("taxable_total") @db.Decimal(14, 2)
+  cgstTotal      Decimal        @default(0) @map("cgst_total") @db.Decimal(14, 2)
+  sgstTotal      Decimal        @default(0) @map("sgst_total") @db.Decimal(14, 2)
+  igstTotal      Decimal        @default(0) @map("igst_total") @db.Decimal(14, 2)
+  roundOff       Decimal        @default(0) @map("round_off") @db.Decimal(6, 2)
+  grandTotal     Decimal        @default(0) @map("grand_total") @db.Decimal(14, 2)
+  paidAmount     Decimal        @default(0) @map("paid_amount") @db.Decimal(14, 2) // receipts + credit applied
+  returnedAmount Decimal        @default(0) @map("returned_amount") @db.Decimal(14, 2) // item returns that cleared the balance
+  notes          String?        @db.VarChar(500) // printed on the bill
+  internalNotes  String?        @map("internal_notes") @db.VarChar(1000) // never printed
+  deliveredAt    DateTime?      @map("delivered_at")
+  createdBy      String         @map("created_by") @db.VarChar(50)
+  createdAt      DateTime       @default(now()) @map("created_at")
+  updatedAt      DateTime       @updatedAt @map("updated_at")
+  cancelledBy    String?        @map("cancelled_by") @db.VarChar(50)
+  cancelledAt    DateTime?      @map("cancelled_at")
+  cancelReason   String?        @map("cancel_reason") @db.VarChar(255)
+
+  items             JobItem[]
+  materials         JobMaterial[]
+  costs             JobCost[]
+  costEntries       JobCostEntry[]
+  logs              JobStatusLog[]
+  allocations       ReceiptAllocation[]
+  creditAllocations CreditAllocation[]
+  returns           SalesReturn[]
+
+  @@index([customerId])
+  @@index([status, expectedDate])
+  @@index([docDate])
+  @@index([bookNo])
+  @@map("stitching_jobs")
+}
+
+/// One garment line: 2 × Blouse @ ₹450, tailor Sumathi @ ₹200 each.
+model JobItem {
+  id            Int            @id @default(autoincrement())
+  jobId         Int            @map("job_id")
+  job           StitchingJob   @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  garmentTypeId Int            @map("garment_type_id")
+  garmentType   GarmentType    @relation(fields: [garmentTypeId], references: [id], onDelete: Restrict)
+  description   String         @db.VarChar(200)
+  qty           Int            @default(1)
+  chargeRate    Decimal        @map("charge_rate") @db.Decimal(12, 2) // per piece to the customer, GST included
+  tailorId      Int?           @map("tailor_id")
+  tailor        Tailor?        @relation(fields: [tailorId], references: [id], onDelete: Restrict)
+  labourRate    Decimal        @default(0) @map("labour_rate") @db.Decimal(12, 2) // per piece to the tailor
+  labourNote    String?        @map("labour_note") @db.VarChar(200) // why the pay was changed (Assign workers)
+  measurements  Json           @default("{}") // copy taken at booking — later visits never change it
+  instructions  String?        @db.VarChar(1000)
+  ownFabric     Boolean        @default(false) @map("own_fabric") // customer brought the cloth
+  imagePath     String?        @map("image_path") @db.VarChar(200) // reference design photo
+  sortOrder     Int            @default(0) @map("sort_order")
+  costEntries   JobCostEntry[]
+
+  @@index([jobId])
+  @@index([tailorId])
+  @@map("job_items")
+}
+
+/// Shop items on a job — stock OUT when added.
+/// Sold   (included = false): printed on the JOB bill at its price (GST included, same rules as the counter); paid in full when added.
+/// Included (included = true): fabric / lining used for the stitching — not printed, stock cost counts in job costing.
+model JobMaterial {
+  id          Int               @id @default(autoincrement())
+  jobId       Int               @map("job_id")
+  job         StitchingJob      @relation(fields: [jobId], references: [id], onDelete: Restrict)
+  variantId   Int               @map("variant_id")
+  variant     ProductVariant    @relation(fields: [variantId], references: [id], onDelete: Restrict)
+  description String            @db.VarChar(200)
+  hsnCode     String?           @map("hsn_code") @db.VarChar(8)
+  qty         Decimal           @db.Decimal(14, 3)
+  unitCost    Decimal           @map("unit_cost") @db.Decimal(14, 4)
+  included    Boolean           @default(true)
+  rate        Decimal           @default(0) @db.Decimal(12, 2) // per unit, GST included (sold lines)
+  discountPct Decimal           @default(0) @map("discount_pct") @db.Decimal(5, 2)
+  amount      Decimal           @default(0) @db.Decimal(14, 2) // billed amount after discount, GST included
+  gstRate     Decimal           @default(0) @map("gst_rate") @db.Decimal(5, 2)
+  taxable     Decimal           @default(0) @db.Decimal(14, 2)
+  cgst        Decimal           @default(0) @db.Decimal(14, 2)
+  sgst        Decimal           @default(0) @db.Decimal(14, 2)
+  igst        Decimal           @default(0) @db.Decimal(14, 2)
+  returnedQty Decimal           @default(0) @map("returned_qty") @db.Decimal(14, 3)
+  returnLines SalesReturnLine[]
+  createdBy   String            @map("created_by") @db.VarChar(50)
+  createdAt   DateTime          @default(now()) @map("created_at")
+
+  @@index([jobId])
+  @@index([variantId])
+  @@map("job_materials")
+}
+
+/// Extra CHARGE printed on the customer's bill (e.g. embroidery ₹500). What the shop spends is a JobCostEntry.
+model JobCost {
+  id          Int          @id @default(autoincrement())
+  jobId       Int          @map("job_id")
+  job         StitchingJob @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  kind        String       @db.VarChar(40) // Embroidery / Lining / Other …
+  description String?      @db.VarChar(200)
+  charge      Decimal      @default(0) @db.Decimal(12, 2) // billed to the customer (GST included)
+
+  @@index([jobId])
+  @@map("job_costs")
+}
+
+enum CostPaidBy {
+  SALARIED // cutting master / hand work on salary — cost for job profit only (salary is paid via payroll)
+  PAID // paid out for this job (cash / UPI …) — a direct expense
+  WORKER // our per-piece worker did it — owed to them (their balance) when the job is Ready
+}
+
+/// Kinds of job work besides stitching (Cutting, Lining, Embroidery …) — ticked per person in Staff & salary.
+/// Stitching itself is the garment line (tailor + pay per piece).
+model JobCostCategory {
+  id            Int                  @id @default(autoincrement())
+  name          String               @unique @db.VarChar(60)
+  defaultPaidBy CostPaidBy           @default(PAID) @map("default_paid_by")
+  sortOrder     Int                  @default(0) @map("sort_order")
+  isActive      Boolean              @default(true) @map("is_active")
+  entries       JobCostEntry[]
+  defaults      GarmentCostDefault[]
+  workers       TailorWork[]
+
+  @@map("job_cost_categories")
+}
+
+/// What the shop spends on a job — added any time (even after delivery). Reduces job profit; a direct expense.
+model JobCostEntry {
+  id          Int             @id @default(autoincrement())
+  jobId       Int             @map("job_id")
+  job         StitchingJob    @relation(fields: [jobId], references: [id], onDelete: Restrict)
+  categoryId  Int             @map("category_id")
+  category    JobCostCategory @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  jobItemId   Int?            @map("job_item_id") // the garment it is for (auto entries)
+  jobItem     JobItem?        @relation(fields: [jobItemId], references: [id], onDelete: SetNull)
+  auto        Boolean         @default(false) // filled from the garment's default rates
+  date        DateTime        @db.Date // the day the cost happened (monthly direct-expense reports)
+  description String?         @db.VarChar(200)
+  qty         Decimal         @default(1) @db.Decimal(12, 3)
+  rate        Decimal         @db.Decimal(12, 2)
+  amount      Decimal         @db.Decimal(14, 2)
+  paidBy      CostPaidBy      @map("paid_by")
+  mode        PaymentMode? // when PAID
+  tailorId    Int?            @map("tailor_id") // who did the work (our worker)
+  tailor      Tailor?         @relation(fields: [tailorId], references: [id], onDelete: Restrict)
+  createdBy   String          @map("created_by") @db.VarChar(50)
+  createdAt   DateTime        @default(now()) @map("created_at")
+
+  @@index([jobId])
+  @@index([date])
+  @@index([tailorId])
+  @@map("job_cost_entries")
+}
+
+model JobStatusLog {
+  id         Int          @id @default(autoincrement())
+  jobId      Int          @map("job_id")
+  job        StitchingJob @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  fromStatus JobStatus?   @map("from_status")
+  toStatus   JobStatus    @map("to_status")
+  note       String?      @db.VarChar(255)
+  by         String       @db.VarChar(50)
+  at         DateTime     @default(now())
+
+  @@index([jobId])
+  @@map("job_status_logs")
+}
+
+/// Return credit used on a later bill or job (credit = return value not needed for its own bill and not refunded).
+model CreditAllocation {
+  id        Int           @id @default(autoincrement())
+  returnId  Int           @map("return_id")
+  return    SalesReturn   @relation(fields: [returnId], references: [id], onDelete: Restrict)
+  invoiceId Int?          @map("invoice_id")
+  invoice   SalesInvoice? @relation(fields: [invoiceId], references: [id], onDelete: Restrict)
+  jobId     Int?          @map("job_id")
+  job       StitchingJob? @relation(fields: [jobId], references: [id], onDelete: Restrict)
+  amount    Decimal       @db.Decimal(14, 2)
+  createdBy String        @map("created_by") @db.VarChar(50)
+  createdAt DateTime      @default(now()) @map("created_at")
+
+  @@index([returnId])
+  @@index([invoiceId])
+  @@index([jobId])
+  @@map("credit_allocations")
+}

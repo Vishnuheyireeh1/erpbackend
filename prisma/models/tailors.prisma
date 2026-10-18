@@ -1,0 +1,138 @@
+// Workshop masters: workers (the job-work profile of a staff member — tailors, embroidery, hand work …), garment types (with their measurement fields) and customer measurements.
+
+enum TailorPayType {
+  PIECE // paid per garment → running balance (earned − paid)
+  SALARY // monthly staff → labour amount is used only for job costing
+}
+
+model Tailor {
+  id             Int           @id @default(autoincrement())
+  code           String        @unique @db.VarChar(20) // T001
+  name           String        @db.VarChar(120)
+  phone          String?       @db.VarChar(20)
+  speciality     String?       @db.VarChar(120) // "Blouse, bridal work"
+  payType        TailorPayType @default(PIECE) @map("pay_type")
+  stitches       Boolean       @default(false) // does stitching (pay per garment in rates)
+  /// What the shop already owed the tailor on go-live (+ = shop owes the tailor).
+  openingBalance Decimal       @default(0) @map("opening_balance") @db.Decimal(14, 2)
+  notes          String?       @db.VarChar(500)
+  isActive       Boolean       @default(true) @map("is_active")
+  /// The staff member this worker profile belongs to (people are created in Staff & salary).
+  staffId        Int?          @unique @map("staff_id")
+  staff          Staff?        @relation(fields: [staffId], references: [id], onDelete: Restrict)
+  createdAt      DateTime      @default(now()) @map("created_at")
+  updatedAt      DateTime      @updatedAt @map("updated_at")
+
+  rates           TailorRate[]
+  works           TailorWork[]
+  workEntries     JobCostEntry[]
+  jobItems        JobItem[]
+  brandItems      BrandOrderItem[]
+  payments        TailorPayment[]
+  productionCosts ProductionCost[]
+
+  @@index([name])
+  @@map("tailors")
+}
+
+/// Blouse, Churidar … Each has its own measurement fields and default prices.
+model GarmentType {
+  id            Int      @id @default(autoincrement())
+  name          String   @unique @db.VarChar(60)
+  /// Measurement field labels in display order, e.g. ["Length", "Shoulder", "Bust"].
+  fields        Json     @default("[]")
+  /// Usual stitching charge to the customer (GST included) — pre-filled on a job, editable.
+  defaultCharge Decimal  @default(0) @map("default_charge") @db.Decimal(12, 2)
+  /// Usual tailor labour — used when the tailor has no own rate for this garment.
+  defaultLabour Decimal  @default(0) @map("default_labour") @db.Decimal(12, 2)
+  sortOrder     Int      @default(0) @map("sort_order")
+  isActive      Boolean  @default(true) @map("is_active")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  rates        TailorRate[]
+  measurements CustomerMeasurement[]
+  jobItems     JobItem[]
+  brandItems   BrandOrderItem[]
+  costDefaults GarmentCostDefault[]
+
+  @@map("garment_types")
+}
+
+/// A tailor's own labour rate for a garment type (overrides the garment's default).
+/// Other work this person does (Cutting, Lining, Embroidery …) and their usual pay per piece for it (per-piece people).
+model TailorWork {
+  tailorId   Int             @map("tailor_id")
+  tailor     Tailor          @relation(fields: [tailorId], references: [id], onDelete: Cascade)
+  categoryId Int             @map("category_id")
+  category   JobCostCategory @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  rate       Decimal         @default(0) @db.Decimal(12, 2)
+
+  @@id([tailorId, categoryId])
+  @@map("tailor_works")
+}
+
+model TailorRate {
+  tailorId      Int         @map("tailor_id")
+  tailor        Tailor      @relation(fields: [tailorId], references: [id], onDelete: Cascade)
+  garmentTypeId Int         @map("garment_type_id")
+  garmentType   GarmentType @relation(fields: [garmentTypeId], references: [id], onDelete: Cascade)
+  rate          Decimal     @db.Decimal(12, 2)
+
+  @@id([tailorId, garmentTypeId])
+  @@map("tailor_rates")
+}
+
+/// One set of measurements taken on a date. Never overwritten — a new visit adds a new row (history).
+model CustomerMeasurement {
+  id            Int         @id @default(autoincrement())
+  customerId    Int         @map("customer_id")
+  customer      Customer    @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  garmentTypeId Int         @map("garment_type_id")
+  garmentType   GarmentType @relation(fields: [garmentTypeId], references: [id], onDelete: Restrict)
+  /// { "Length": "38", "Bust": "34" } — keyed by field label (inches as typed).
+  values        Json
+  notes         String?     @db.VarChar(500)
+  takenOn       DateTime    @map("taken_on") @db.Date
+  createdBy     String      @map("created_by") @db.VarChar(60)
+  createdAt     DateTime    @default(now()) @map("created_at")
+
+  @@index([customerId, garmentTypeId, takenOn])
+  @@map("customer_measurements")
+}
+
+/// Money paid to a per-piece tailor (TP/2026-27/0001). Never edited — cancelled with a reason.
+model TailorPayment {
+  id           Int         @id @default(autoincrement())
+  docNo        String      @unique @map("doc_no") @db.VarChar(30)
+  tailorId     Int         @map("tailor_id")
+  tailor       Tailor      @relation(fields: [tailorId], references: [id], onDelete: Restrict)
+  docDate      DateTime    @map("doc_date") @db.Date
+  amount       Decimal     @db.Decimal(14, 2)
+  mode         PaymentMode
+  reference    String?     @db.VarChar(60)
+  notes        String?     @db.VarChar(255)
+  status       DocStatus   @default(POSTED)
+  createdBy    String      @map("created_by") @db.VarChar(50)
+  createdAt    DateTime    @default(now()) @map("created_at")
+  cancelledBy  String?     @map("cancelled_by") @db.VarChar(50)
+  cancelledAt  DateTime?   @map("cancelled_at")
+  cancelReason String?     @map("cancel_reason") @db.VarChar(255)
+  payslip      Payslip?
+
+  @@index([tailorId, docDate])
+  @@index([docDate])
+  @@map("tailor_payments")
+}
+
+/// Usual job cost per piece for a garment (e.g. Churidar: Cutting master ₹140) — added automatically when a job is booked.
+model GarmentCostDefault {
+  garmentTypeId Int             @map("garment_type_id")
+  garmentType   GarmentType     @relation(fields: [garmentTypeId], references: [id], onDelete: Cascade)
+  categoryId    Int             @map("category_id")
+  category      JobCostCategory @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  rate          Decimal         @db.Decimal(12, 2)
+
+  @@id([garmentTypeId, categoryId])
+  @@map("garment_cost_defaults")
+}

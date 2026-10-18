@@ -1,0 +1,82 @@
+// Master lists — the basic data every product, bill and job picks from.
+// Deleting is a hard delete, blocked while anything still uses the row.
+
+/// Category tree: parentId = null → main category, otherwise a subcategory.
+model Category {
+  id          Int        @id @default(autoincrement())
+  name        String     @db.VarChar(80)
+  description String?    @db.VarChar(255)
+  parentId    Int?       @map("parent_id")
+  parent      Category?  @relation("CategoryTree", fields: [parentId], references: [id], onDelete: Restrict)
+  children    Category[] @relation("CategoryTree")
+  isActive    Boolean    @default(true) @map("is_active")
+  products    Product[]
+  createdAt   DateTime   @default(now()) @map("created_at")
+  updatedAt   DateTime   @updatedAt @map("updated_at")
+
+  @@unique([parentId, name])
+  @@index([parentId])
+  @@map("categories")
+}
+
+model Brand {
+  id        Int       @id @default(autoincrement())
+  name      String    @unique @db.VarChar(80)
+  isActive  Boolean   @default(true) @map("is_active")
+  products  Product[]
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+
+  @@map("brands")
+}
+
+/// Unit of measurement. allowDecimal = can sell 2.5 (metre, kg) vs whole numbers (piece).
+model Unit {
+  id           Int       @id @default(autoincrement())
+  name         String    @unique @db.VarChar(40)
+  code         String    @unique @db.VarChar(10)
+  allowDecimal Boolean   @default(false) @map("allow_decimal")
+  isActive     Boolean   @default(true) @map("is_active")
+  products     Product[]
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+
+  @@map("units")
+}
+
+model Size {
+  id        Int              @id @default(autoincrement())
+  name      String           @unique @db.VarChar(30)
+  sortOrder Int              @default(0) @map("sort_order")
+  isActive  Boolean          @default(true) @map("is_active")
+  variants  ProductVariant[]
+  createdAt DateTime         @default(now()) @map("created_at")
+  updatedAt DateTime         @updatedAt @map("updated_at")
+
+  @@map("sizes")
+}
+
+model Colour {
+  id        Int              @id @default(autoincrement())
+  name      String           @unique @db.VarChar(40)
+  hexCode   String?          @map("hex_code") @db.VarChar(7)
+  isActive  Boolean          @default(true) @map("is_active")
+  variants  ProductVariant[]
+  createdAt DateTime         @default(now()) @map("created_at")
+  updatedAt DateTime         @updatedAt @map("updated_at")
+
+  @@map("colours")
+}
+
+/// GST slab, e.g. "GST 5%" → rate 5.00
+model TaxRate {
+  id        Int       @id @default(autoincrement())
+  name      String    @unique @db.VarChar(40)
+  rate      Decimal   @unique @db.Decimal(5, 2)
+  isActive  Boolean   @default(true) @map("is_active")
+  products  Product[]
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+
+  @@map("tax_rates")
+}

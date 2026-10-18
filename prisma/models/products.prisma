@@ -1,0 +1,90 @@
+// Products and their variants. Stock and billing always work on a VARIANT.
+// A product without sizes/colours (e.g. fabric) has exactly one variant.
+
+enum ProductType {
+  RAW_MATERIAL // fabric, lining … used for stitching / production
+  READY_MADE // bought from suppliers and resold
+  FINISHED // made in-house (production)
+  ACCESSORY // buttons, zips, laces …
+  SERVICE // stitching, alteration — no stock
+
+  @@map("product_type")
+}
+
+model Product {
+  id          Int              @id @default(autoincrement())
+  code        String           @unique @db.VarChar(20) // P000001 — generated
+  name        String           @db.VarChar(150)
+  type        ProductType
+  categoryId  Int              @map("category_id")
+  category    Category         @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  brandId     Int?             @map("brand_id")
+  brand       Brand?           @relation(fields: [brandId], references: [id], onDelete: Restrict)
+  unitId      Int              @map("unit_id")
+  unit        Unit             @relation(fields: [unitId], references: [id], onDelete: Restrict)
+  taxRateId   Int?             @map("tax_rate_id")
+  taxRate     TaxRate?         @relation(fields: [taxRateId], references: [id], onDelete: Restrict)
+  hsnCode     String?          @map("hsn_code") @db.VarChar(8)
+  fabric      String?          @db.VarChar(80)
+  description String?          @db.VarChar(1000)
+  imagePath   String?          @map("image_path") @db.VarChar(255)
+  isActive    Boolean          @default(true) @map("is_active")
+  variants    ProductVariant[]
+  createdAt   DateTime         @default(now()) @map("created_at")
+  updatedAt   DateTime         @updatedAt @map("updated_at")
+
+  // Trigram index → fast "name contains" search on 100k+ products.
+  @@index([name(ops: raw("gin_trgm_ops"))], type: Gin, map: "products_name_trgm_idx")
+  @@index([categoryId])
+  @@index([brandId])
+  @@index([type])
+  @@map("products")
+}
+
+model ProductVariant {
+  id            Int      @id @default(autoincrement())
+  productId     Int      @map("product_id")
+  product       Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  sku           String   @unique @db.VarChar(60) // P000001-M-RED — generated
+  barcode       String   @unique @db.VarChar(30) // EAN-13 generated, or the supplier's own
+  sizeId        Int?     @map("size_id")
+  size          Size?    @relation(fields: [sizeId], references: [id], onDelete: Restrict)
+  colourId      Int?     @map("colour_id")
+  colour        Colour?  @relation(fields: [colourId], references: [id], onDelete: Restrict)
+  purchasePrice Decimal  @default(0) @map("purchase_price") @db.Decimal(12, 2)
+  sellingPrice  Decimal  @default(0) @map("selling_price") @db.Decimal(12, 2)
+  mrp           Decimal? @db.Decimal(12, 2)
+  minStock      Decimal  @default(0) @map("min_stock") @db.Decimal(12, 3) // low-stock alert level
+  isActive      Boolean  @default(true) @map("is_active")
+
+  // Current stock — written ONLY by the stock engine (services/inventory/stock.engine.ts),
+  // always together with a StockMovement row. Never edited directly.
+  stockQty   Decimal @default(0) @map("stock_qty") @db.Decimal(14, 3)
+  avgCost    Decimal @default(0) @map("avg_cost") @db.Decimal(14, 4) // weighted average cost per unit
+  stockValue Decimal @default(0) @map("stock_value") @db.Decimal(16, 2)
+
+  movements           StockMovement[]
+  documentLines       StockDocumentLine[]
+  purchaseLines       PurchaseLine[]
+  salesLines          SalesLine[]
+  jobMaterials        JobMaterial[]
+  brandMaterials      BrandOrderMaterial[]
+  productionOutputs   ProductionOutput[]   @relation("ProductionOutputs")
+  productionMaterials ProductionMaterial[] @relation("ProductionMaterials")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([productId])
+  @@index([sizeId])
+  @@index([colourId])
+  @@map("product_variants")
+}
+
+/// Running numbers for generated codes (product code, barcode …).
+model Counter {
+  key   String @id @db.VarChar(40)
+  value Int    @default(0)
+
+  @@map("counters")
+}

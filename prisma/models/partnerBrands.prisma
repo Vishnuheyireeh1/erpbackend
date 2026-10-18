@@ -1,0 +1,30 @@
+/// Other brands Sairandhri stitches for (their label on the garment) — orders, delivery bills and their dues.
+model PartnerBrand {
+  id             Int      @id @default(autoincrement())
+  code           String   @unique @db.VarChar(20) // B0001
+  name           String   @db.VarChar(120)
+  contactPerson  String?  @map("contact_person") @db.VarChar(80)
+  phone          String?  @db.VarChar(20)
+  email          String?  @db.VarChar(120)
+  gstin          String?  @unique @db.VarChar(15)
+  stateCode      String   @default("32") @map("state_code") @db.VarChar(2)
+  address        String?  @db.VarChar(255)
+  city           String?  @db.VarChar(60)
+  pincode        String?  @db.VarChar(6)
+  /// Usual GST % on their delivery bills (0 = no GST) — pre-selected, can be changed on each bill.
+  gstRate        Decimal  @default(0) @map("gst_rate") @db.Decimal(5, 2)
+  /// What the brand already owed the shop on the go-live date (+ = they owe us).
+  openingBalance Decimal  @default(0) @map("opening_balance") @db.Decimal(14, 2)
+  notes          String?  @db.VarChar(500)
+  isActive       Boolean  @default(true) @map("is_active")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  orders       BrandOrder[]
+  bills        BrandBill[]
+  payments     BrandPayment[]
+  clothEntries BrandClothEntry[]
+
+  @@index([name])
+  @@map("partner_brands")
+}

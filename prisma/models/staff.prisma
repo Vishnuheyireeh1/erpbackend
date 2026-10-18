@@ -1,0 +1,96 @@
+// Staff details and salary paid (Module 12). No attendance — the owner just records what was paid.
+// Everyone is created here (sales staff, tailors, cutting master, embroidery …). People who do job work get a
+// worker profile (Tailor model) for per-piece pay, work done and their balance.
+
+enum StaffDept {
+  WORKSHOP // cutting master, hand work … → direct cost in profit & loss
+  SHOP // sales staff, helpers … → shop expense
+}
+
+model Staff {
+  id        Int             @id @default(autoincrement())
+  code      String          @unique @db.VarChar(20) // E001
+  name      String          @db.VarChar(120)
+  phone     String?         @db.VarChar(20)
+  address   String?         @db.VarChar(255)
+  role      String          @db.VarChar(60) // Cutting master, Hand work, Sales staff …
+  dept      StaffDept       @default(SHOP)
+  salary    Decimal         @default(0) @db.Decimal(12, 2) // usual monthly salary (for reference / pre-fill)
+  joinDate  DateTime?       @map("join_date") @db.Date
+  notes     String?         @db.VarChar(500)
+  isActive  Boolean         @default(true) @map("is_active")
+  createdAt DateTime        @default(now()) @map("created_at")
+  updatedAt DateTime        @updatedAt @map("updated_at")
+  payments  SalaryPayment[]
+  batches   Batch[]
+  payslips  Payslip[]
+  worker    Tailor? // job-work profile (stitching, embroidery …) — balance, work done, pay
+
+  @@index([name])
+  @@map("staff")
+}
+
+/// Salary (or part / advance of it) paid to a staff member — SAL/2026-27/0001. Shows in day book and profit & loss.
+model SalaryPayment {
+  id           Int         @id @default(autoincrement())
+  docNo        String      @unique @map("doc_no") @db.VarChar(30)
+  staffId      Int         @map("staff_id")
+  staff        Staff       @relation(fields: [staffId], references: [id], onDelete: Restrict)
+  docDate      DateTime    @map("doc_date") @db.Date // paid on
+  month        DateTime    @db.Date // salary for this month (first day) — counted in that month's profit
+  amount       Decimal     @db.Decimal(12, 2)
+  mode         PaymentMode
+  reference    String?     @db.VarChar(60)
+  notes        String?     @db.VarChar(255)
+  status       DocStatus   @default(POSTED)
+  createdBy    String      @map("created_by") @db.VarChar(50)
+  createdAt    DateTime    @default(now()) @map("created_at")
+  cancelledBy  String?     @map("cancelled_by") @db.VarChar(50)
+  cancelledAt  DateTime?   @map("cancelled_at")
+  cancelReason String?     @map("cancel_reason") @db.VarChar(255)
+  payslip      Payslip?
+
+  @@index([staffId])
+  @@index([docDate])
+  @@index([month])
+  @@map("salary_payments")
+}
+
+/// Monthly salary paid with a payslip — PS/2026-27/0001. A snapshot of the month: salary − advance already paid
+/// + bonus − deduction (→ one salary payment) and per-piece work due (→ one worker payment). Cancel cancels both.
+model Payslip {
+  id              Int            @id @default(autoincrement())
+  docNo           String         @unique @map("doc_no") @db.VarChar(30)
+  staffId         Int            @map("staff_id")
+  staff           Staff          @relation(fields: [staffId], references: [id], onDelete: Restrict)
+  month           DateTime       @db.Date // first day
+  docDate         DateTime       @map("doc_date") @db.Date // paid on
+  salary          Decimal        @default(0) @db.Decimal(12, 2) // monthly salary
+  advance         Decimal        @default(0) @db.Decimal(12, 2) // already paid for this month before the payslip
+  bonus           Decimal        @default(0) @db.Decimal(12, 2)
+  deduction       Decimal        @default(0) @db.Decimal(12, 2) // leave … (typed by hand)
+  deductionNote   String?        @map("deduction_note") @db.VarChar(200)
+  pieceEarned     Decimal        @default(0) @map("piece_earned") @db.Decimal(14, 2) // per-piece work earned this month
+  piecePieces     Int            @default(0) @map("piece_pieces")
+  pieceBefore     Decimal        @default(0) @map("piece_before") @db.Decimal(14, 2) // older balance (− = advance taken)
+  piecePaid       Decimal        @default(0) @map("piece_paid") @db.Decimal(14, 2)
+  netPaid         Decimal        @map("net_paid") @db.Decimal(14, 2)
+  mode            PaymentMode
+  reference       String?        @db.VarChar(60)
+  notes           String?        @db.VarChar(255)
+  work            Json           @default("[]") // [{ docNo, date, detail, pieces, amount }] — work earned this month
+  salaryPaymentId Int?           @unique @map("salary_payment_id")
+  salaryPayment   SalaryPayment? @relation(fields: [salaryPaymentId], references: [id], onDelete: Restrict)
+  tailorPaymentId Int?           @unique @map("tailor_payment_id")
+  tailorPayment   TailorPayment? @relation(fields: [tailorPaymentId], references: [id], onDelete: Restrict)
+  status          DocStatus      @default(POSTED)
+  createdBy       String         @map("created_by") @db.VarChar(50)
+  createdAt       DateTime       @default(now()) @map("created_at")
+  cancelledBy     String?        @map("cancelled_by") @db.VarChar(50)
+  cancelledAt     DateTime?      @map("cancelled_at")
+  cancelReason    String?        @map("cancel_reason") @db.VarChar(255)
+
+  @@index([staffId])
+  @@index([month])
+  @@map("payslips")
+}

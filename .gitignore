@@ -1,0 +1,8 @@
+node_modules
+dist
+.env
+*.log
+
+/src/generated/prisma
+uploads
+backups
