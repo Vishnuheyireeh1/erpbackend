@@ -1,0 +1,51 @@
+# Render test deploy (Blueprint): one web service = API + the built screens from the erpfrontend repo, + a Postgres DB.
+# Render → New → Blueprint → pick this repo. It asks for the values marked sync: false (admin login, site address).
+services:
+  - type: web
+    name: sairandhri-erp
+    runtime: node
+    plan: free
+    buildCommand: >-
+      npm ci --include=dev && npm run build &&
+      rm -rf client && git clone --depth 1 https://github.com/Vishnuheyireeh1/erpfrontend.git client &&
+      npm --prefix client ci --include=dev && npm --prefix client run build
+    # Tables are created / updated on every start; the seed adds the admin login once (never overwrites it).
+    startCommand: npx prisma migrate deploy && npx prisma db seed && node dist/server.js
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_VERSION
+        value: "24"
+      - key: NODE_ENV
+        value: production
+      - key: COOKIE_SECURE
+        value: "true"
+      - key: TRUST_PROXY
+        value: "1"
+      - key: CLIENT_DIST
+        value: client/dist
+      - key: JWT_SECRET
+        generateValue: true
+      - key: JWT_EXPIRES_IN
+        value: 7d
+      - key: CLIENT_URL
+        sync: false # your Render address, e.g. https://sairandhri-erp.onrender.com
+      - key: ADMIN_USERNAME
+        sync: false
+      - key: ADMIN_PASSWORD
+        sync: false # a strong new password — NOT the one used on the laptop
+      - key: DB_HOST
+        fromDatabase: { name: sairandhri-db, property: host }
+      - key: DB_PORT
+        fromDatabase: { name: sairandhri-db, property: port }
+      - key: DB_NAME
+        fromDatabase: { name: sairandhri-db, property: database }
+      - key: DB_USER
+        fromDatabase: { name: sairandhri-db, property: user }
+      - key: DB_PASSWORD
+        fromDatabase: { name: sairandhri-db, property: password }
+
+databases:
+  - name: sairandhri-db
+    plan: free
+    databaseName: sairandhri_erp
+    user: sairandhri

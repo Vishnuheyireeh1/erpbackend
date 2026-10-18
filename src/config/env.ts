@@ -16,6 +16,9 @@ export const env = {
   clientUrl: process.env.CLIENT_URL ?? 'http://localhost:5174',
   // Login cookie only over https. Keep false when the shop uses http://<pc-ip>:5050 on its own Wi-Fi.
   cookieSecure: process.env.COOKIE_SECURE === 'true',
+  // Hosted behind a proxy (Render …): how many proxies to trust, so the login-attempt limit sees each visitor's own IP.
+  // Leave empty on the shop PC (no proxy) — otherwise anyone could fake their address.
+  trustProxy: Number(process.env.TRUST_PROXY) || 0,
   // Serve the built screens (frontend/dist) from this server → one program, one address for the shop.
   clientDist: process.env.CLIENT_DIST ?? '../frontend/dist',
   backup: {

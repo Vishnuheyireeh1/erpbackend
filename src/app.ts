@@ -9,6 +9,7 @@ import { errorHandler, notFound } from './middlewares/error.middleware'
 import routes from './routes'
 
 const app = express()
+if (env.trustProxy) app.set('trust proxy', env.trustProxy)
 
 app.use(
   helmet({
