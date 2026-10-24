@@ -24,6 +24,7 @@ model Staff {
   payments  SalaryPayment[]
   batches   Batch[]
   payslips  Payslip[]
+  measured  JobItem[]       @relation("JobItemMeasuredBy") // garments they took measurements for
   worker    Tailor? // job-work profile (stitching, embroidery …) — balance, work done, pay
 
   @@index([name])

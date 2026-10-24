@@ -30,6 +30,8 @@ const LINES = Prisma.sql`
     FROM tailor_payments p JOIN tailors tl ON tl.id = p.tailor_id WHERE p.status = 'POSTED'
   UNION ALL SELECT e.date, e.created_at, 'JOB_COST', e.job_id, j.doc_no, k.name, e.mode::text, 0, e.amount
     FROM job_cost_entries e JOIN stitching_jobs j ON j.id = e.job_id JOIN job_cost_categories k ON k.id = e.category_id WHERE e.paid_by = 'PAID' AND e.mode IS NOT NULL
+  UNION ALL SELECT c.date, c.created_at, 'BRAND_COST', c.order_id, o.doc_no, k.name || ' · ' || o.brand_name, c.mode::text, 0, c.amount
+    FROM brand_order_costs c JOIN brand_orders o ON o.id = c.order_id JOIN job_cost_categories k ON k.id = c.category_id WHERE c.paid_by = 'PAID' AND c.mode IS NOT NULL
   UNION ALL SELECT f.doc_date, f.created_at, 'FEE', s.id, f.doc_no, s.name, f.mode::text, f.amount, 0
     FROM fee_receipts f JOIN enrolments e ON e.id = f.enrolment_id JOIN students s ON s.id = e.student_id WHERE f.status = 'POSTED'
   UNION ALL SELECT o.doc_date, o.created_at, 'PRODUCTION_COST', o.id, o.doc_no, c.description, c.mode::text, 0, c.amount

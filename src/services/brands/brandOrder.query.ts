@@ -5,6 +5,7 @@ import { dateRange, todayIST } from '../../utils/financialYear'
 import { byDate } from '../../utils/order'
 import type { BrandOrderListQuery } from '../../validators/brandOrder.validator'
 import { clothBalance } from './brandCloth.service'
+import { profitOf } from './brandOrder.costs'
 
 const r2 = (n: number) => Math.round(n * 100) / 100
 
@@ -64,8 +65,10 @@ export async function getOrder(id: number) {
       materials: { orderBy: { id: 'asc' }, include: { variant: { select: { sku: true, product: { select: { unit: { select: { code: true } } } } } } } },
       bills: { orderBy: { id: 'asc' }, select: { id: true, docNo: true, docDate: true, grandTotal: true, gstRate: true, status: true, _count: { select: { items: true } } } },
       clothEntries: { orderBy: [{ date: 'asc' }, { id: 'asc' }] },
+      costs: { orderBy: [{ date: 'asc' }, { id: 'asc' }], include: { category: { select: { id: true, name: true } }, tailor: { select: { id: true, name: true } }, item: { select: { id: true, description: true, endCustomer: true } } } },
     },
   })
   if (!order) throw ApiError.notFound('Brand order not found')
-  return { ...order, ...orderSums(order), cloth: clothBalance(order.clothEntries) }
+  const profit = (await profitOf([id])).get(id)
+  return { ...order, ...orderSums(order), cloth: clothBalance(order.clothEntries), profit }
 }

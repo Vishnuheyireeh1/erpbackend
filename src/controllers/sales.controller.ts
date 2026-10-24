@@ -1,3 +1,4 @@
+import { editSale } from '../services/sales/sale.edit'
 import type { Request, Response } from 'express'
 import type { ZodType } from 'zod'
 import * as customerService from '../services/customer.service'
@@ -46,6 +47,8 @@ export const customerAdvance = async (req: Request, res: Response) => res.json({
 export const listSalesBills = async (req: Request, res: Response) => res.json({ success: true, ...(await listBills({ ...parse(docListSchema, req.query), customerId: customerFilter(req), kind: billKind(req) })) })
 export const getSalesBill = async (req: Request, res: Response) => res.json({ success: true, item: await getSale(readId(req)) })
 export const createSalesBill = async (req: Request, res: Response) => res.status(201).json({ success: true, item: await saleService.createSale(req.body as SaleInput, user(req)) })
+// Edit a bill of this month, same number (stock, GST and money worked out again).
+export const editSalesBill = async (req: Request, res: Response) => res.json({ success: true, item: await editSale(readId(req), req.body as SaleInput, user(req)) })
 export const cancelSalesBill = async (req: Request, res: Response) => res.json({ success: true, item: await saleService.cancelSale(readId(req), parse(cancelDocSchema, req.body).reason, user(req)) })
 
 export async function salesBillPdf(req: Request, res: Response) {

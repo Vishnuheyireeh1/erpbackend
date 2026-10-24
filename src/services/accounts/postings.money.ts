@@ -24,6 +24,11 @@ export const MONEY_CTES = Prisma.sql`
     FROM brand_order_items i JOIN brand_orders o ON o.id = i.order_id JOIN tailors t ON t.id = i.tailor_id AND t.pay_type = 'PIECE'
     WHERE i.stage IN ('READY', 'DELIVERED') AND i.ready_on IS NOT NULL AND o.status <> 'CANCELLED'
     GROUP BY i.tailor_id, o.id, i.ready_on
+    UNION ALL -- other work on a brand order by a per-piece worker, on the cost date
+    SELECT c.tailor_id, o.id, o.doc_no, c.date, SUM(c.amount)
+    FROM brand_order_costs c JOIN brand_orders o ON o.id = c.order_id JOIN tailors t ON t.id = c.tailor_id AND t.pay_type = 'PIECE'
+    WHERE c.paid_by = 'WORKER' AND o.status <> 'CANCELLED'
+    GROUP BY c.tailor_id, o.id, c.date
   )`
 
 export const MONEY_LINES = Prisma.sql`
@@ -60,6 +65,10 @@ export const MONEY_LINES = Prisma.sql`
     FROM job_cost_entries e JOIN stitching_jobs j ON j.id = e.job_id JOIN job_cost_categories k ON k.id = e.category_id WHERE e.paid_by = 'PAID' AND e.mode IS NOT NULL
   UNION ALL SELECT e.date, ${cb(Prisma.sql`e.mode::text`)}, '', -e.amount, 'JC', e.job_id, j.doc_no, k.name
     FROM job_cost_entries e JOIN stitching_jobs j ON j.id = e.job_id JOIN job_cost_categories k ON k.id = e.category_id WHERE e.paid_by = 'PAID' AND e.mode IS NOT NULL
+  UNION ALL SELECT c.date, '5030', '', c.amount, 'BRO', c.order_id, o.doc_no, k.name
+    FROM brand_order_costs c JOIN brand_orders o ON o.id = c.order_id JOIN job_cost_categories k ON k.id = c.category_id WHERE c.paid_by = 'PAID' AND c.mode IS NOT NULL
+  UNION ALL SELECT c.date, ${cb(Prisma.sql`c.mode::text`)}, '', -c.amount, 'BRO', c.order_id, o.doc_no, k.name
+    FROM brand_order_costs c JOIN brand_orders o ON o.id = c.order_id JOIN job_cost_categories k ON k.id = c.category_id WHERE c.paid_by = 'PAID' AND c.mode IS NOT NULL
 
   -- Salary: the cost belongs to the month it is for (salary payable), the money goes out on the paid day.
   UNION ALL SELECT p.month, CASE WHEN st.dept = 'WORKSHOP' THEN '6010' ELSE '6000' END, '', p.amount, 'SALM', p.id, p.doc_no, st.name

@@ -9,7 +9,6 @@ const rows = [
   ['Category *', 'The big group (look in the Lists sheet).', 'Kurtis', 'No'],
   ['Sub category', 'The small group inside it (look in the Lists sheet). Can be empty.', 'Party wear kurtis', 'No'],
   ['Unit *', 'pc = counted in pieces · m = measured in metres.', 'pc', 'No — but all rows of one item must have the same Unit.'],
-  ['Brand', 'Company name on the tag. Empty if none.', 'Sairandhri Originals', 'No'],
   ['GST %', 'Tax % on the supplier bill (0, 5 or 18).', '5', 'No'],
   ['HSN code', 'Tax code number on the supplier bill.', '6204', 'No'],
   ['Fabric', 'Cloth type.', 'Georgette', 'No'],
@@ -31,7 +30,7 @@ const rules = [
   '2. Product name + Category + Sub category together make ONE item. If that item is already in the system, the row is refused — change it in the app instead.',
   '3. Rows of the same item: Size / Colour must be different; Type and Unit must be the same.',
   '4. Barcode (if you fill it) must never repeat — not in this file, not in the system.',
-  '5. Everything else (price, brand, category, fabric …) can repeat on any number of rows.',
+  '5. Everything else (price, category, fabric …) can repeat on any number of rows.',
   '6. Delete the 3 example rows on the Products sheet before you start. * = must fill.',
 ]
 

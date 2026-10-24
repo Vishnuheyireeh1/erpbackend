@@ -31,10 +31,10 @@ export async function createSale(input: SaleInput, user: string) {
     lines: input.lines.map((l) => ({ ...l, productGstRate: items.get(l.variantId)!.gstRate, hsnCode: items.get(l.variantId)!.hsnCode })),
     billDiscount: input.billDiscount, taxMode, gstRegistered: profile.gstRegistered, apparelRule,
   })
-  // Counter bills (readymade / materials) are always paid in full — only stitching jobs keep a balance.
-  // A customer's advance / return credit counts as payment (checked inside the transaction, after it is applied).
-  const fullError = (due: number) => ApiError.badRequest(`₹${Math.round(due * 100) / 100} is still due — readymade / material bills must be paid in full`)
-  if (!customer || !input.useAdvance) {
+  // Credit: a named customer may pay part now (or nothing) — the rest is their balance on this bill.
+  // A walk-in (no customer) must pay in full: there is nobody to collect the balance from.
+  const fullError = (due: number) => ApiError.badRequest(`₹${Math.round(due * 100) / 100} is still due — a walk-in bill must be paid in full (add the customer's name and phone to give credit)`)
+  if (!customer) {
     const pay = splitTenders(input.tenders, calc.grandTotal)
     if (pay.applied < calc.grandTotal - 0.004) throw fullError(calc.grandTotal - pay.applied)
   }
@@ -74,7 +74,7 @@ export async function createSale(input: SaleInput, user: string) {
     // Advance / credit first, then the money handed over now (change only from cash).
     const advance = customer && input.useAdvance ? await applyAdvanceTx(tx, customer.id, 'INV', bill.id, user) : 0
     const pay = splitTenders(input.tenders, Math.round((calc.grandTotal - advance) * 100) / 100)
-    if (advance + pay.applied < calc.grandTotal - 0.004) throw fullError(calc.grandTotal - advance - pay.applied)
+    if (!customer && advance + pay.applied < calc.grandTotal - 0.004) throw fullError(calc.grandTotal - advance - pay.applied)
     await tx.salesInvoice.update({ where: { id: bill.id }, data: { costTotal: Math.round(costTotal * 100) / 100, cashTendered: pay.cashTendered, changeReturned: pay.change } })
     if (pay.applied > 0) {
       await createReceiptTx(tx, { customerId: customer?.id ?? null, docDate: date, tenders: pay.tenders, notes: `With ${docNo}`, allocations: [{ invoiceId: bill.id, amount: pay.applied }] }, user)

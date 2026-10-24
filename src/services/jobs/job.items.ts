@@ -51,7 +51,7 @@ export async function postLinesTx(tx: Tx, job: { id: number; docNo: string }, li
   })
 }
 
-// Money for the job now: optional old advance / credit first, then what is handed over. Sold items must be fully covered.
+// Money for the job now: optional old advance / credit first, then what is handed over (any amount — the rest is the balance).
 export async function takePaymentTx(
   tx: Tx,
   jobId: number,
@@ -60,9 +60,7 @@ export async function takePaymentTx(
   const job = await tx.stitchingJob.findUniqueOrThrow({ where: { id: jobId } })
   const advance = p.useAdvance ? await applyAdvanceTx(tx, job.customerId, 'JOB', jobId, p.user) : 0
   const paid = r2(p.tenders.reduce((s, t) => s + t.amount, 0))
-  if (advance + paid < p.itemsDue - 0.004) {
-    throw ApiError.badRequest(`Items ₹${p.itemsDue} must be paid in full now — ₹${r2(p.itemsDue - advance - paid)} more needed`)
-  }
+  // Credit: items on a job may also stay on the customer's balance (paid at hand over or later).
   if (paid > 0) {
     const due = r2(Number(job.grandTotal) - Number(job.paidAmount) - Number(job.returnedAmount) - advance)
     const toJob = r2(Math.min(paid, Math.max(0, due)))

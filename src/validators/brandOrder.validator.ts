@@ -50,6 +50,21 @@ export const brandStageSchema = z.object({
   itemIds: z.array(z.coerce.number().int().positive()).min(1, 'Choose the pieces').max(200),
   stage: z.enum(['IN_WORK', 'READY']),
 })
+export const brandTailorSchema = z.object({ tailorId: z.coerce.number().int().positive().nullish().transform((v) => v ?? null), labourRate: money.default(0) })
+// Work / cost on a brand order (embroidery, hand work …).
+export const brandCostSchema = z.object({
+  categoryId: z.coerce.number({ error: 'Choose the work' }).int().positive('Choose the work'),
+  itemId: z.coerce.number().int().positive().nullish().transform((v) => v ?? null),
+  date: date('Date').optional(),
+  description: optional(200),
+  qty: z.coerce.number().positive('Enter the pieces').max(99_999).default(1),
+  rate: money.refine((n) => n > 0, 'Enter the rate'),
+  paidBy: z.enum(['WORKER', 'SALARIED', 'PAID']),
+  mode: z.enum(['CASH', 'UPI', 'CARD', 'BANK', 'CHEQUE']).nullish().transform((v) => v ?? null),
+  tailorId: z.coerce.number().int().positive().nullish().transform((v) => v ?? null),
+})
+export type BrandCostInput = z.infer<typeof brandCostSchema>
+
 export const brandCancelSchema = z.object({ reason: z.string().trim().min(3, 'Write why it is cancelled').max(255) })
 
 export const brandOrderListSchema = z.object({

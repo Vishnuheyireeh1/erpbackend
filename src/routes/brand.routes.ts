@@ -5,7 +5,7 @@ import * as order from '../controllers/brandOrder.controller'
 import { validateBody } from '../middlewares/validate.middleware'
 import { brandSchema } from '../validators/brand.validator'
 import { brandClothSchema, brandDeliverSchema, brandDocCancelSchema, brandPaymentSchema } from '../validators/brandBill.validator'
-import { brandCancelSchema, brandMaterialAddSchema, brandOrderCreateSchema, brandOrderUpdateSchema, brandStageSchema } from '../validators/brandOrder.validator'
+import { brandCancelSchema, brandCostSchema, brandTailorSchema, brandMaterialAddSchema, brandOrderCreateSchema, brandOrderUpdateSchema, brandStageSchema } from '../validators/brandOrder.validator'
 
 // /api/brands — brands Sairandhri stitches for.
 export const brandRoutes = Router()
@@ -29,6 +29,9 @@ brandOrderRoutes.post('/:id/stage', validateBody(brandStageSchema), order.stage)
 brandOrderRoutes.post('/:id/cancel', validateBody(brandCancelSchema), order.cancel)
 brandOrderRoutes.post('/:id/materials', validateBody(brandMaterialAddSchema), order.addMaterials)
 brandOrderRoutes.delete('/:id/materials/:materialId', order.removeMaterial)
+brandOrderRoutes.post('/:id/items/:itemId/tailor', validateBody(brandTailorSchema), order.setTailor)
+brandOrderRoutes.post('/:id/costs', validateBody(brandCostSchema), order.addCost)
+brandOrderRoutes.delete('/:id/costs/:costId', order.removeCost)
 brandOrderRoutes.post('/:id/deliver', validateBody(brandDeliverSchema), money.deliverOrder)
 brandOrderRoutes.post('/:id/cloth', validateBody(brandClothSchema), money.clothAdd)
 brandOrderRoutes.delete('/:id/cloth/:entryId', money.clothRemove)

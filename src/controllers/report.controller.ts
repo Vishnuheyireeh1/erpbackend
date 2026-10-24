@@ -3,6 +3,7 @@ import { exportDirectExpenses, exportJobProfit, exportTailorWork } from '../serv
 import * as ax from '../services/export/analysis.export'
 import * as ex from '../services/export/report.export'
 import * as an from '../services/reports/analysis.report'
+import { itemProfit, type ItemKind } from '../services/reports/itemProfit.report'
 import * as st from '../services/reports/stock.report'
 import { dashboard } from '../services/reports/dashboard.service'
 import * as gst from '../services/reports/gst.service'
@@ -63,3 +64,12 @@ export const slow = async (req: Request, res: Response) => res.json({ success: t
 export const slowExport = (req: Request, res: Response) => ax.exportSlowMoving(res, { days: num(req.query.days), search: str(req.query.search) }, user(req))
 export const purchases = async (req: Request, res: Response) => res.json({ success: true, ...(req.query.by === 'item' ? await an.purchasesByItem(range(req)) : await an.purchasesBySupplier(range(req))) })
 export const purchasesExport = (req: Request, res: Response) => ax.exportPurchases(res, { ...range(req), by: str(req.query.by) }, user(req))
+
+// /api/reports/analysis/item-profit — profit by garment / product (kind = STITCHING | SALE | BRAND, empty = all).
+const itemKind = (req: Request) => {
+  const k = str(req.query.kind)
+  if (k && !['STITCHING', 'SALE', 'BRAND'].includes(k)) throw ApiError.badRequest('Unknown type')
+  return k as ItemKind | undefined
+}
+export const itemProfitReport = async (req: Request, res: Response) => res.json({ success: true, ...(await itemProfit({ ...range(req), kind: itemKind(req) })) })
+export const itemProfitExport = (req: Request, res: Response) => ax.exportItemProfit(res, { ...range(req), kind: itemKind(req) }, user(req))

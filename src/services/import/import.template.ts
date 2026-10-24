@@ -14,13 +14,12 @@ const examples = [
 
 // Lists sheet: every valid value, so people can copy instead of guessing.
 async function addListsSheet(wb: ExcelJS.Workbook) {
-  const [categories, units, taxRates, sizes, colours, brands] = await Promise.all([
+  const [categories, units, taxRates, sizes, colours] = await Promise.all([
     prisma.category.findMany({ where: { isActive: true }, include: { parent: true } }),
     prisma.unit.findMany({ where: { isActive: true }, orderBy: { name: 'asc' } }),
     prisma.taxRate.findMany({ where: { isActive: true }, orderBy: { rate: 'asc' } }),
     prisma.size.findMany({ where: { isActive: true }, orderBy: [{ sortOrder: 'asc' }, { name: 'asc' }] }),
     prisma.colour.findMany({ where: { isActive: true }, orderBy: { name: 'asc' } }),
-    prisma.brand.findMany({ where: { isActive: true }, orderBy: { name: 'asc' } }),
   ])
   // Category + Sub category pairs, one per line (a main category on its own line = no sub category).
   const pairs = categories
@@ -34,7 +33,6 @@ async function addListsSheet(wb: ExcelJS.Workbook) {
     ['GST %', taxRates.map((t) => String(Number(t.rate)))],
     ['Size', sizes.map((s) => s.name)],
     ['Colour', colours.map((c) => c.name)],
-    ['Brand', brands.map((b) => b.name)],
   ]
   const sheet = wb.addWorksheet('Lists')
   columns.forEach(([title, values], i) => {

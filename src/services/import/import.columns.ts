@@ -2,7 +2,7 @@
 // Rows with the same product name + category become one product with several variants.
 
 export type ColumnKey =
-  | 'name' | 'type' | 'category' | 'subcategory' | 'unit' | 'brand' | 'gst' | 'hsn' | 'fabric'
+  | 'name' | 'type' | 'category' | 'subcategory' | 'unit' | 'gst' | 'hsn' | 'fabric'
   | 'size' | 'colour' | 'purchasePrice' | 'sellingPrice' | 'mrp' | 'minStock' | 'openingStock' | 'stockCost' | 'barcode' | 'notes'
 
 export type ColumnDef = { key: ColumnKey; header: string; required?: boolean; width: number; note: string }
@@ -13,7 +13,6 @@ export const importColumns: ColumnDef[] = [
   { key: 'category', header: 'Category', required: true, width: 22, note: 'Main category (e.g. Kurtis) — see the Lists sheet' },
   { key: 'subcategory', header: 'Sub category', width: 24, note: 'Optional: sub category under it (e.g. Party wear kurtis)' },
   { key: 'unit', header: 'Unit', required: true, width: 10, note: 'Name or code: Piece / pc, Metre / m …' },
-  { key: 'brand', header: 'Brand', width: 20, note: 'Optional' },
   { key: 'gst', header: 'GST %', width: 8, note: 'Optional: 0, 5 or 18' },
   { key: 'hsn', header: 'HSN code', width: 11, note: 'Optional: 4, 6 or 8 digits' },
   { key: 'fabric', header: 'Fabric', width: 16, note: 'Optional' },
@@ -33,7 +32,7 @@ export const importColumns: ColumnDef[] = [
 const aliases: Record<string, ColumnKey> = {
   productname: 'name', name: 'name', item: 'name', itemname: 'name',
   type: 'type', producttype: 'type',
-  category: 'category', maincategory: 'category', subcategory: 'subcategory', sub: 'subcategory', unit: 'unit', uom: 'unit', brand: 'brand',
+  category: 'category', maincategory: 'category', subcategory: 'subcategory', sub: 'subcategory', unit: 'unit', uom: 'unit',
   gst: 'gst', gstpercent: 'gst', gstrate: 'gst', tax: 'gst',
   hsn: 'hsn', hsncode: 'hsn', fabric: 'fabric', material: 'fabric',
   size: 'size', colour: 'colour', color: 'colour',

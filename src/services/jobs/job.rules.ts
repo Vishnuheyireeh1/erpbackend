@@ -71,6 +71,7 @@ export function itemData(i: JobItemInput, index: number, garmentName: (id: numbe
     measurements: i.measurements,
     instructions: i.instructions,
     ownFabric: i.ownFabric,
+    measuredById: i.measuredById,
     sortOrder: index,
   }
 }

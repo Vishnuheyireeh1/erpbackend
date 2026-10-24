@@ -28,7 +28,7 @@ export async function exportBrandReport(res: Response, kind: string, q: BrandRep
     const r = await pendingWork(q)
     type R = (typeof r.rows)[number]
     const columns: Col<R>[] = [
-      { header: 'Order', value: (x) => x.docNo, width: 20 }, { header: 'Brand', value: (x) => x.brand, width: 22 }, { header: 'Their no.', value: (x) => x.theirOrderNo, width: 14 },
+      { header: 'Order', value: (x) => x.docNo, width: 20 }, { header: 'Brand', value: (x) => x.brand, width: 22 }, { header: 'Order / bill no.', value: (x) => x.theirOrderNo, width: 14 },
       { header: 'Due', value: (x) => x.due, type: 'date', width: 13 }, { header: 'Late', value: (x) => (x.late ? 'Late' : ''), width: 7 },
       { header: 'Piece', value: (x) => x.piece, width: 20 }, { header: 'For', value: (x) => x.endCustomer, width: 18 }, { header: 'Qty', value: (x) => x.qty, type: 'number', width: 7 },
       { header: 'Tailor', value: (x) => x.tailor, width: 16 }, { header: 'Stage', value: (x) => STAGE[x.stage], width: 10 }, { header: 'Value', value: (x) => x.value, type: 'money' },
@@ -42,7 +42,7 @@ export async function exportBrandReport(res: Response, kind: string, q: BrandRep
       { header: 'Order', value: (x) => x.docNo, width: 20 }, { header: 'Received', value: (x) => x.docDate, type: 'date', width: 13 }, { header: 'Brand', value: (x) => x.brand, width: 22 },
       { header: 'Pieces', value: (x) => x.pieces, type: 'number', width: 8 }, { header: 'Delivered', value: (x) => x.delivered, type: 'number', width: 9 },
       { header: 'Billed (before GST)', value: (x) => x.billed, type: 'money' }, { header: 'Our cloth', value: (x) => x.ourCloth, type: 'money' },
-      { header: 'Tailor pay', value: (x) => x.tailorPay, type: 'money' }, { header: 'Profit', value: (x) => x.profit, type: 'money' },
+      { header: 'Tailor pay', value: (x) => x.tailorPay, type: 'money' }, { header: 'Other costs', value: (x) => x.otherCosts, type: 'money' }, { header: 'Profit', value: (x) => x.profit, type: 'money' },
     ]
     return sendExcel(res, { fileName: 'brand-order-profit', title: 'Profit per brand order', filters: filters(r), columns, rows: [r.rows], user })
   }

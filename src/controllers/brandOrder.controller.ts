@@ -1,10 +1,11 @@
 import type { Request, Response } from 'express'
+import * as costs from '../services/brands/brandOrder.costs'
 import * as material from '../services/brands/brandOrder.material'
 import { getOrder, listOrders } from '../services/brands/brandOrder.query'
 import * as orders from '../services/brands/brandOrder.service'
 import { exportBrandOrders } from '../services/export/brand.export'
 import { ApiError } from '../utils/ApiError'
-import { brandOrderListSchema, type BrandOrderCreateInput, type BrandOrderUpdateInput } from '../validators/brandOrder.validator'
+import { brandOrderListSchema, type BrandCostInput, type BrandOrderCreateInput, type BrandOrderUpdateInput } from '../validators/brandOrder.validator'
 
 // /api/brand-orders — orders from other brands, stitched with their label.
 
@@ -40,6 +41,19 @@ export async function cancel(req: Request, res: Response) {
 export async function addMaterials(req: Request, res: Response) {
   const b = req.body as { itemId: number; lines: Parameters<typeof material.addMaterials>[2] }
   await material.addMaterials(readId(req), b.itemId, b.lines, user(req))
+  res.json({ success: true, item: await getOrder(readId(req)) })
+}
+export async function setTailor(req: Request, res: Response) {
+  const b = req.body as { tailorId: number | null; labourRate: number }
+  await orders.setPieceTailor(readId(req), readId(req, 'itemId'), b.tailorId, b.labourRate, user(req))
+  res.json({ success: true, item: await getOrder(readId(req)) })
+}
+export async function addCost(req: Request, res: Response) {
+  await costs.addCost(readId(req), req.body as BrandCostInput, user(req))
+  res.status(201).json({ success: true, item: await getOrder(readId(req)) })
+}
+export async function removeCost(req: Request, res: Response) {
+  await costs.removeCost(readId(req), readId(req, 'costId'), user(req))
   res.json({ success: true, item: await getOrder(readId(req)) })
 }
 export async function removeMaterial(req: Request, res: Response) {

@@ -23,6 +23,7 @@ salesRoutes.get('/', sales.listSalesBills)
 salesRoutes.get('/:id', sales.getSalesBill)
 salesRoutes.get('/:id/pdf', sales.salesBillPdf)
 salesRoutes.post('/', validateBody(saleSchema), sales.createSalesBill)
+salesRoutes.put('/:id', validateBody(saleSchema), sales.editSalesBill)
 salesRoutes.post('/:id/cancel', sales.cancelSalesBill)
 salesRoutes.put('/:id/book-no', validateBody(bookNoSchema), sales.setSaleBookNo)
 

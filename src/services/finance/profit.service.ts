@@ -33,7 +33,8 @@ export async function profitAndLoss(q: { from?: string; to?: string }) {
       WHERE NOT m.included AND j.status <> 'CANCELLED' AND (m.created_at AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Kolkata')::date BETWEEN ${from}::date AND ${to}::date`,
     prisma.$queryRaw<Sum>`SELECT SUM(m.qty * m.unit_cost) AS v FROM job_materials m JOIN stitching_jobs j ON j.id = m.job_id
       WHERE m.included AND j.status <> 'CANCELLED' AND (m.created_at AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Kolkata')::date BETWEEN ${from}::date AND ${to}::date`,
-    prisma.jobCostEntry.aggregate({ where: { paidBy: 'PAID', date: range }, _sum: { amount: true } }),
+    prisma.$queryRaw<Sum>`SELECT (SELECT COALESCE(SUM(amount), 0) FROM job_cost_entries WHERE paid_by = 'PAID' AND date BETWEEN ${from}::date AND ${to}::date)
+      + (SELECT COALESCE(SUM(amount), 0) FROM brand_order_costs WHERE paid_by = 'PAID' AND date BETWEEN ${from}::date AND ${to}::date) AS v`,
     prisma.expense.groupBy({ by: ['categoryId'], where: { status: 'POSTED', docDate: range }, _sum: { amount: true } }),
     prisma.moneyMovement.aggregate({ where: { status: 'POSTED', kind: 'OTHER_INCOME', docDate: range }, _sum: { amount: true } }),
     earnedRows({ from, to, kind: ['JOB', 'BRD'] }), // production labour sits in stock cost until sold
@@ -68,7 +69,7 @@ export async function profitAndLoss(q: { from?: string; to?: string }) {
   const direct = [
     { name: 'Worker pay (per piece)', amount: r2(earned.filter((e) => piece.has(e.tailor_id)).reduce((s, e) => s + Number(e.labour), 0)) },
     { name: 'Shop material used for stitching', amount: r2(num(used[0]?.v) + num(brandCloth[0]?.used)) },
-    { name: 'Job costs paid out', amount: r2(num(entries._sum.amount)) },
+    { name: 'Job costs paid out', amount: r2(num(entries[0]?.v)) },
     { name: 'Stock adjustments (damage / count)', amount: r2(num(adjust[0]?.v)) },
     ...exp.filter((e) => e.kind === 'DIRECT').map((e) => ({ name: e.name, amount: r2(e.amount) })),
   ].filter((d) => d.amount !== 0)

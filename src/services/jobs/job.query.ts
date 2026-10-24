@@ -85,7 +85,7 @@ export async function getJob(id: number) {
       customer: { select: { id: true, code: true, name: true, phone: true, address: true, city: true } },
       parentJob: { select: { id: true, docNo: true } },
       alterations: { select: { id: true, docNo: true, status: true }, orderBy: { id: 'asc' } },
-      items: { orderBy: { sortOrder: 'asc' }, include: { garmentType: { select: { name: true, fields: true } }, tailor: { select: { id: true, name: true, payType: true } } } },
+      items: { orderBy: { sortOrder: 'asc' }, include: { garmentType: { select: { name: true, fields: true } }, tailor: { select: { id: true, name: true, payType: true } }, measuredBy: { select: { id: true, name: true } } } },
       materials: { orderBy: { id: 'asc' }, include: { variant: { select: { id: true, sku: true, product: { select: { unit: { select: { code: true } } } } } } } },
       costs: { orderBy: { id: 'asc' } },
       costEntries: { orderBy: [{ date: 'asc' }, { id: 'asc' }], include: { category: { select: { id: true, name: true } }, tailor: { select: { id: true, code: true, name: true, payType: true } } } },

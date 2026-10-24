@@ -79,6 +79,8 @@ model JobItem {
   labourRate    Decimal        @default(0) @map("labour_rate") @db.Decimal(12, 2) // per piece to the tailor
   labourNote    String?        @map("labour_note") @db.VarChar(200) // why the pay was changed (Assign workers)
   measurements  Json           @default("{}") // copy taken at booking — later visits never change it
+  measuredById  Int?           @map("measured_by_id") // staff who took the measurements (optional, can be set later)
+  measuredBy    Staff?         @relation("JobItemMeasuredBy", fields: [measuredById], references: [id], onDelete: SetNull)
   instructions  String?        @db.VarChar(1000)
   ownFabric     Boolean        @default(false) @map("own_fabric") // customer brought the cloth
   imagePath     String?        @map("image_path") @db.VarChar(200) // reference design photo
@@ -150,6 +152,7 @@ model JobCostCategory {
   sortOrder     Int                  @default(0) @map("sort_order")
   isActive      Boolean              @default(true) @map("is_active")
   entries       JobCostEntry[]
+  brandCosts    BrandOrderCost[]
   defaults      GarmentCostDefault[]
   workers       TailorWork[]
 

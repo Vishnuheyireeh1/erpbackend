@@ -15,19 +15,17 @@ const PRODUCT_BATCH = 1_000 // ~15 values per product → well under PostgreSQL'
 const VARIANT_BATCH = 2_000
 const TX_OPTIONS = { timeout: 10 * 60_000, maxWait: 30_000 }
 
-// Creates the missing brands / sizes / colours, then returns name → id for each.
+// Creates the missing sizes / colours, then returns name → id for each.
 async function createMissingMasters(tx: Tx, toCreate: ImportPlan['toCreate']) {
-  if (toCreate.brands.length) await tx.brand.createMany({ data: toCreate.brands.map((name) => ({ name })), skipDuplicates: true })
   if (toCreate.sizes.length) await tx.size.createMany({ data: toCreate.sizes.map((name) => ({ name, sortOrder: 1000 })), skipDuplicates: true })
   if (toCreate.colours.length) await tx.colour.createMany({ data: toCreate.colours.map((name) => ({ name })), skipDuplicates: true })
 
-  const [brands, sizes, colours] = await Promise.all([
-    tx.brand.findMany({ select: { id: true, name: true } }),
+  const [sizes, colours] = await Promise.all([
     tx.size.findMany({ select: { id: true, name: true } }),
     tx.colour.findMany({ select: { id: true, name: true } }),
   ])
   const toMap = (rows: { id: number; name: string }[]) => new Map(rows.map((r) => [norm(r.name), r]))
-  return { brands: toMap(brands), sizes: toMap(sizes), colours: toMap(colours) }
+  return { sizes: toMap(sizes), colours: toMap(colours) }
 }
 
 // Saves a fully validated plan. All or nothing: any failure rolls everything back.
@@ -58,7 +56,6 @@ export async function commitPlan(plan: ImportPlan, user: string) {
           type: f.type,
           categoryId: f.categoryId,
           unitId: f.unitId,
-          brandId: resolve(f.brand, masters.brands)?.id ?? null,
           taxRateId: f.taxRateId,
           hsnCode: f.hsnCode,
           fabric: f.fabric,
@@ -106,7 +103,6 @@ export async function commitPlan(plan: ImportPlan, user: string) {
       products: plan.products.length,
       variants: variantTotal,
       created: {
-        brands: plan.toCreate.brands.length,
         sizes: plan.toCreate.sizes.length,
         colours: plan.toCreate.colours.length,
       },

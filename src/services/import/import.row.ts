@@ -14,7 +14,6 @@ export type ParsedRow = {
   type: ProductType
   categoryId: number
   unitId: number
-  brand: Ref | null
   taxRateId: number | null
   hsnCode: string | null
   fabric: string | null
@@ -55,9 +54,9 @@ export function parseRow(raw: RawRow, lk: Lookups, createMissing: boolean) {
     return Math.round(n * 1000) / 1000
   }
 
-  // Brand / size / colour: existing by name, or new (if allowed).
+  // Size / colour: existing by name, or new (if allowed).
   const ref = (key: ColumnKey, map: Map<string, { id: number; name: string }>, label: string): Ref | null => {
-    const s = text(key, key === 'brand' ? 80 : 40)
+    const s = text(key, 40)
     if (!s) return null
     const found = map.get(norm(s))
     if (found) return { id: found.id, name: found.name }
@@ -105,7 +104,6 @@ export function parseRow(raw: RawRow, lk: Lookups, createMissing: boolean) {
 
   const row = {
     rowNo: raw.rowNo,
-    brand: ref('brand', lk.brandByName, 'Brand'),
     size: ref('size', lk.sizeByName, 'Size'),
     colour: ref('colour', lk.colourByName, 'Colour'),
     fabric: text('fabric', 80),

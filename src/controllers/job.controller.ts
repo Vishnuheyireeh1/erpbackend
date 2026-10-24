@@ -53,6 +53,12 @@ export const updateCost = async (req: Request, res: Response) => ok(res, await c
 export const setWorkers = async (req: Request, res: Response) => ok(res, await assignWorkers(readId(req), req.body as JobWorkersInput, user(req)))
 export const removeCost = async (req: Request, res: Response) => ok(res, await costs.removeCostEntry(readId(req), readId(req, 'eid'), user(req)))
 
+export async function measuredBy(req: Request, res: Response) {
+  const raw = (req.body as { staffId?: unknown }).staffId
+  const staffId = raw === null || raw === '' || raw === undefined ? null : Number(raw)
+  if (staffId !== null && (!Number.isInteger(staffId) || staffId <= 0)) throw ApiError.badRequest('Choose the staff member')
+  res.json({ success: true, item: await material.setMeasuredBy(readId(req), readId(req, 'itemId'), staffId, user(req)) })
+}
 export async function uploadPhoto(req: Request, res: Response) {
   if (!req.file) throw ApiError.badRequest('Choose a photo')
   res.json({ success: true, imagePath: await material.setItemPhoto(readId(req), readId(req, 'itemId'), req.file.buffer, user(req)) })

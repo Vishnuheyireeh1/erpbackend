@@ -5,9 +5,11 @@ import type { BrandReportQuery } from '../../validators/brandBill.validator'
 import * as brandModel from '../../models/brand.model'
 import { clothBalance } from '../brands/brandCloth.service'
 import { monthRange } from './workshop.report'
+import { profitOf } from '../brands/brandOrder.costs'
 
 // Brand reports. Money figures follow the books: billed = delivery bills, income = bill before GST,
-// our cloth = stock cost of items from our stock on the order, tailor pay = per-piece pay of pieces ready / delivered.
+// our cloth = stock cost of items from our stock on the order, tailor pay = per-piece pay of pieces ready / delivered,
+// other costs = embroidery, hand work … added on the order.
 
 const r2 = (n: number) => Math.round(n * 100) / 100
 
@@ -64,22 +66,17 @@ export async function orderProfit(q: BrandReportQuery) {
   const orders = await prisma.brandOrder.findMany({
     where: { status: { not: 'CANCELLED' }, docDate: dateRange(from, to), ...(q.brandId ? { brandId: q.brandId } : {}) },
     orderBy: [{ docDate: 'desc' }, { id: 'desc' }],
-    include: { items: { include: { tailor: { select: { payType: true } } } }, bills: { where: { status: 'POSTED' }, select: { taxableTotal: true } } },
+    include: { items: { select: { qty: true, stage: true } } },
   })
-  const ids = orders.map((o) => o.id)
-  const cloth = ids.length
-    ? await prisma.$queryRaw<{ ref_id: number; v: Prisma.Decimal }[]>`SELECT ref_id, -SUM(value) AS v FROM stock_movements WHERE ref_type = 'BRO' AND ref_id = ANY(${ids}) GROUP BY ref_id`
-    : []
+  const money = await profitOf(orders.map((o) => o.id))
   const rows = orders.map((o) => {
-    const billed = r2(o.bills.reduce((s, b) => s + Number(b.taxableTotal), 0))
-    const ourCloth = r2(Number(cloth.find((c) => c.ref_id === o.id)?.v ?? 0))
-    const tailorPay = r2(o.items.filter((i) => i.stage !== 'IN_WORK' && i.tailor?.payType === 'PIECE').reduce((s, i) => s + i.qty * Number(i.labourRate), 0))
     const pieces = o.items.reduce((s, i) => s + i.qty, 0)
     const delivered = o.items.filter((i) => i.stage === 'DELIVERED').reduce((s, i) => s + i.qty, 0)
-    return { orderId: o.id, docNo: o.docNo, docDate: o.docDate, brand: o.brandName, status: o.status, pieces, delivered, billed, ourCloth, tailorPay, profit: r2(billed - ourCloth - tailorPay) }
+    const m = money.get(o.id) ?? { billed: 0, ourCloth: 0, tailorPay: 0, otherCosts: 0, profit: 0 }
+    return { orderId: o.id, docNo: o.docNo, docDate: o.docDate, brand: o.brandName, status: o.status, pieces, delivered, ...m }
   })
-  const sum = (k: 'billed' | 'ourCloth' | 'tailorPay' | 'profit') => r2(rows.reduce((s, r) => s + r[k], 0))
-  return { from, to, rows, totals: { billed: sum('billed'), ourCloth: sum('ourCloth'), tailorPay: sum('tailorPay'), profit: sum('profit') } }
+  const sum = (k: 'billed' | 'ourCloth' | 'tailorPay' | 'otherCosts' | 'profit') => r2(rows.reduce((s, r) => s + r[k], 0))
+  return { from, to, rows, totals: { billed: sum('billed'), ourCloth: sum('ourCloth'), tailorPay: sum('tailorPay'), otherCosts: sum('otherCosts'), profit: sum('profit') } }
 }
 
 // The brands' own cloth with us, per order: received − used − given back.

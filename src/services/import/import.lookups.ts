@@ -6,10 +6,9 @@ const norm = (s: string) => s.trim().toLowerCase().replace(/\s+/g, ' ')
 const CHUNK = 5_000
 
 export async function loadLookups() {
-  const [categories, units, brands, taxRates, sizes, colours] = await Promise.all([
+  const [categories, units, taxRates, sizes, colours] = await Promise.all([
     prisma.category.findMany({ select: { id: true, name: true, parentId: true, parent: { select: { name: true } } } }),
     prisma.unit.findMany({ select: { id: true, name: true, code: true, allowDecimal: true } }),
-    prisma.brand.findMany({ select: { id: true, name: true } }),
     prisma.taxRate.findMany({ select: { id: true, rate: true } }),
     prisma.size.findMany({ select: { id: true, name: true } }),
     prisma.colour.findMany({ select: { id: true, name: true } }),
@@ -35,7 +34,6 @@ export async function loadLookups() {
     categoryByName,
     unitByKey,
     unitAllowsDecimal: new Map(units.map((u) => [u.id, u.allowDecimal])),
-    brandByName: new Map(brands.map((b) => [norm(b.name), b])),
     taxByRate: new Map(taxRates.map((t) => [Number(t.rate), t.id])),
     sizeByName: new Map(sizes.map((s) => [norm(s.name), s])),
     colourByName: new Map(colours.map((c) => [norm(c.name), c])),

@@ -27,6 +27,9 @@ export async function costRows(q: { from?: string; to?: string; kind?: CostKind;
       UNION ALL SELECT 'JOB_COST', e.job_id, e.date, j.doc_no, k.name || ' (paid out)', NULLIF(CONCAT_WS(' · ', j.customer_name, e.description), ''), 'DIRECT', e.mode::text, e.amount, false
       FROM job_cost_entries e JOIN stitching_jobs j ON j.id = e.job_id JOIN job_cost_categories k ON k.id = e.category_id
       WHERE e.paid_by = 'PAID' AND e.date BETWEEN ${from}::date AND ${to}::date
+      UNION ALL SELECT 'BRAND_COST', c.order_id, c.date, o.doc_no, k.name || ' (paid out, brand order)', NULLIF(CONCAT_WS(' · ', o.brand_name, c.description), ''), 'DIRECT', c.mode::text, c.amount, false
+      FROM brand_order_costs c JOIN brand_orders o ON o.id = c.order_id JOIN job_cost_categories k ON k.id = c.category_id
+      WHERE c.paid_by = 'PAID' AND c.date BETWEEN ${from}::date AND ${to}::date
       UNION ALL SELECT 'MATERIAL', j.id, (m.created_at AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Kolkata')::date, j.doc_no, 'Cloth given free for stitching',
         m.description || ' · ' || j.customer_name, 'DIRECT', NULL, m.qty * m.unit_cost, false
       FROM job_materials m JOIN stitching_jobs j ON j.id = m.job_id

@@ -23,6 +23,7 @@ router.put('/:id/costs/:eid', validateBody(jobCostEntrySchema), job.updateCost)
 router.delete('/:id/costs/:eid', job.removeCost)
 router.put('/:id/workers', validateBody(jobWorkersSchema), job.setWorkers)
 router.put('/:id/book-no', validateBody(bookNoSchema), job.setBookNo)
+router.post('/:id/items/:itemId/measured-by', job.measuredBy)
 router.post('/:id/items/:itemId/photo', singleImage, job.uploadPhoto)
 router.delete('/:id/items/:itemId/photo', job.removePhoto)
 

@@ -7,7 +7,7 @@ export type PlannedProduct = { first: ParsedRow; variants: ParsedRow[] }
 export type ImportPlan = {
   rowCount: number
   products: PlannedProduct[]
-  toCreate: { brands: string[]; sizes: string[]; colours: string[] }
+  toCreate: { sizes: string[]; colours: string[] }
   errors: RowError[]
   errorCount: number
 }
@@ -88,7 +88,6 @@ export async function buildPlan(rawRows: RawRow[], createMissing: boolean): Prom
     rowCount: rawRows.length,
     products: [...groups.values()],
     toCreate: {
-      brands: newNames(rows, (r) => r.brand),
       sizes: newNames(rows, (r) => r.size),
       colours: newNames(rows, (r) => r.colour),
     },

@@ -28,6 +28,7 @@ model Tailor {
   workEntries     JobCostEntry[]
   jobItems        JobItem[]
   brandItems      BrandOrderItem[]
+  brandCosts      BrandOrderCost[]
   payments        TailorPayment[]
   productionCosts ProductionCost[]
 

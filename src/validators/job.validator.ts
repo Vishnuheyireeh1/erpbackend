@@ -23,6 +23,7 @@ const item = z.object({
   measurements: z.record(z.string().trim().min(1).max(40), z.string().trim().max(20)).default({}),
   instructions: optional(1000),
   ownFabric: z.boolean().default(false),
+  measuredById: z.coerce.number().int().positive().nullish().transform((v) => v ?? null), // staff who measured (optional)
 })
 
 // Extra charge on the customer's bill (embroidery ₹500 …). What the shop spends is a job cost entry.

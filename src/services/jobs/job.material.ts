@@ -53,6 +53,19 @@ export async function removeItem(jobId: number, materialId: number, user: string
   return getJob(jobId)
 }
 
+// Who took the measurements of a garment — set at billing, or later on the job page (null = not recorded).
+export async function setMeasuredBy(jobId: number, itemId: number, staffId: number | null, user: string) {
+  const item = await prisma.jobItem.findFirst({ where: { id: itemId, jobId }, include: { job: { select: { docNo: true } } } })
+  if (!item) throw ApiError.notFound('Garment line not found')
+  const staff = staffId ? await prisma.staff.findUnique({ where: { id: staffId }, select: { id: true, name: true } }) : null
+  if (staffId && !staff) throw ApiError.badRequest('Choose the staff member again')
+  await prisma.$transaction(async (tx) => {
+    await tx.jobItem.update({ where: { id: itemId }, data: { measuredById: staff?.id ?? null } })
+    await audit(tx, { actor: user, action: 'job.measuredBy', entity: 'job', entityId: jobId, summary: `${item.job.docNo}: ${item.description} measured by ${staff?.name ?? '— (cleared)'}` })
+  })
+  return getJob(jobId)
+}
+
 // Reference design photo for one garment line (replaces the old one).
 export async function setItemPhoto(jobId: number, itemId: number, buf: Buffer | undefined, user: string) {
   const item = await prisma.jobItem.findFirst({ where: { id: itemId, jobId }, include: { job: { select: { docNo: true, status: true } } } })

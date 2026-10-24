@@ -38,7 +38,7 @@ export async function createOrder(input: BrandOrderCreateInput, user: string) {
       await postMaterialsTx(tx, order, item.id, priced[k], { user, date, allowNegative })
     }
     const count = input.items.reduce((s, i) => s + i.qty, 0)
-    await audit(tx, { actor: user, action: 'brandOrder.create', entity: 'brandOrder', entityId: order.id, summary: `${docNo} — ${brand.name}${input.theirOrderNo ? ` (their no. ${input.theirOrderNo})` : ''}, ${pieces(count)}, due ${input.expectedDate}` })
+    await audit(tx, { actor: user, action: 'brandOrder.create', entity: 'brandOrder', entityId: order.id, summary: `${docNo} — ${brand.name}${input.theirOrderNo ? ` (order / bill no. ${input.theirOrderNo})` : ''}, ${pieces(count)}, due ${input.expectedDate}` })
     return order.id
   }, TX)
   return getOrder(id)
@@ -116,4 +116,18 @@ export async function cancelOrder(id: number, reason: string, user: string) {
     await audit(tx, { actor: user, action: 'brandOrder.cancel', entity: 'brandOrder', entityId: id, summary: `${order.docNo} cancelled — ${reason}` })
   }, TX)
   return getOrder(id)
+}
+
+// Tailor + pay per piece for one piece, from the order page (no full edit). Delivered pieces don't change.
+export async function setPieceTailor(id: number, itemId: number, tailorId: number | null, labourRate: number, user: string) {
+  const item = await prisma.brandOrderItem.findFirst({ where: { id: itemId, orderId: id }, include: { order: { select: { docNo: true, status: true } } } })
+  if (!item) throw ApiError.notFound('Piece not found')
+  if (item.order.status !== 'OPEN') throw ApiError.conflict(`${item.order.docNo} is not open`)
+  if (item.stage === 'DELIVERED') throw ApiError.badRequest(`${item.description} is already delivered — it can't be changed`)
+  const tailor = tailorId ? await prisma.tailor.findUnique({ where: { id: tailorId }, select: { id: true, name: true, isActive: true } }) : null
+  if (tailorId && (!tailor || !tailor.isActive)) throw ApiError.badRequest('Choose the tailor again')
+  await prisma.$transaction(async (tx) => {
+    await tx.brandOrderItem.update({ where: { id: itemId }, data: { tailorId: tailor?.id ?? null, labourRate: tailor ? labourRate : 0 } })
+    await audit(tx, { actor: user, action: 'brandOrder.tailor', entity: 'brandOrder', entityId: id, summary: `${item.order.docNo}: ${item.description} → ${tailor ? `${tailor.name} ₹${labourRate}/pc` : 'no tailor'}` })
+  })
 }

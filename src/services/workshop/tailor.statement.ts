@@ -47,6 +47,12 @@ export function earnedRows(f: { tailorIds?: number[]; from?: string; to?: string
       FROM brand_order_items i JOIN brand_orders o ON o.id = i.order_id
       WHERE i.tailor_id IS NOT NULL AND i.stage IN ('READY', 'DELIVERED') AND i.ready_on IS NOT NULL AND o.status <> 'CANCELLED'
       GROUP BY i.tailor_id, o.id, i.ready_on
+      UNION ALL
+      SELECT c.tailor_id, 'BRD', o.id, o.doc_no, c.date, SUM(c.qty)::int, SUM(c.amount),
+        string_agg(c.qty::numeric(14,0) || ' × ' || k.name || COALESCE(' · ' || c.description, '') || ' (' || o.brand_name || ')', ', ' ORDER BY c.id)
+      FROM brand_order_costs c JOIN brand_orders o ON o.id = c.order_id JOIN job_cost_categories k ON k.id = c.category_id
+      WHERE c.tailor_id IS NOT NULL AND c.paid_by IN ('WORKER', 'SALARIED') AND o.status <> 'CANCELLED'
+      GROUP BY c.tailor_id, o.id, c.date
     )
     SELECT * FROM earned WHERE ${Prisma.join(conds, ' AND ')} ORDER BY earned_on, job_id`
 }

@@ -19,7 +19,6 @@ const variantSelect = {
     select: {
       code: true, name: true, type: true, hsnCode: true, fabric: true, isActive: true,
       category: { select: { name: true, parent: { select: { name: true } } } },
-      brand: { select: { name: true } },
       unit: { select: { code: true } },
       taxRate: { select: { rate: true } },
     },
@@ -42,7 +41,6 @@ const productColumns: ExcelColumn<VariantRow>[] = [
   { header: 'Product name', value: (v) => v.product.name, width: 32 },
   { header: 'Type', value: (v) => typeLabels[v.product.type], width: 14 },
   { header: 'Category', value: (v) => (v.product.category.parent ? `${v.product.category.parent.name} > ${v.product.category.name}` : v.product.category.name), width: 30 },
-  { header: 'Brand', value: (v) => v.product.brand?.name, width: 18 },
   { header: 'Unit', value: (v) => v.product.unit.code, width: 8 },
   { header: 'HSN', value: (v) => v.product.hsnCode, width: 10 },
   { header: 'GST %', value: (v) => v.product.taxRate?.rate, type: 'number', width: 8 },

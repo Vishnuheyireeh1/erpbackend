@@ -47,7 +47,7 @@ export async function exportBrandOrders(res: Response, q: BrandOrderListQuery, u
     { header: 'Received', value: (o) => o.docDate, type: 'date', width: 13 },
     { header: 'Due', value: (o) => o.expectedDate, type: 'date', width: 13 },
     { header: 'Brand', value: (o) => o.brandName, width: 26 },
-    { header: 'Their order no.', value: (o) => o.theirOrderNo, width: 16 },
+    { header: 'Order no. / Bill number', value: (o) => o.theirOrderNo, width: 16 },
     { header: 'Pieces', value: (o) => o.pieces, type: 'number', width: 9 },
     { header: 'In work', value: (o) => o.inWork, type: 'number', width: 9 },
     { header: 'Ready', value: (o) => o.ready, type: 'number', width: 9 },
