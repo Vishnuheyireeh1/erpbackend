@@ -29,7 +29,10 @@ export const variantSchema = z.object({
 
 export const productSchema = z.object({
   name: z.string({ error: 'Enter the product name' }).trim().min(1, 'Enter the product name').max(150),
-  type: z.enum(productTypes, { error: 'Choose a product type' }),
+  // Product type from the list (Masters → Product types); its kind decides stock / production.
+  // Old clients / import may still send only the kind (type).
+  productTypeId: optionalId,
+  type: z.enum(productTypes).optional(),
   categoryId: z.coerce.number({ error: 'Choose a category' }).int().positive('Choose a category'),
   brandId: optionalId,
   unitId: z.coerce.number({ error: 'Choose a unit' }).int().positive('Choose a unit'),
@@ -53,6 +56,7 @@ export const productSchema = z.object({
 export const productListSchema = z.object({
   search: z.string().trim().max(100).optional(),
   type: z.enum(productTypes).optional(),
+  productTypeId: z.coerce.number().int().positive().optional(),
   categoryId: z.coerce.number().int().positive().optional(), // main category includes its subcategories
   brandId: z.coerce.number().int().positive().optional(),
   status: z.enum(['all', 'active', 'inactive']).default('all'),

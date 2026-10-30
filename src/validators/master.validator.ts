@@ -8,6 +8,12 @@ const name = (max: number) =>
 const isActive = z.boolean().default(true)
 
 export const masterSchemas = {
+  // Product types: name + what it works like (Service = no stock, Own-made = production).
+  productTypes: z.object({
+    name: name(60),
+    kind: z.enum(['READY_MADE', 'FINISHED', 'RAW_MATERIAL', 'ACCESSORY', 'SERVICE'], { error: 'Choose how it works' }),
+    isActive,
+  }),
   categories: z.object({
     name: name(80),
     description: z.string().trim().max(255).nullish().transform((v) => v || null),

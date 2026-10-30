@@ -6,13 +6,27 @@ import type { ProductInput } from '../../validators/product.validator'
 type NameMap = Map<number, string>
 
 // Checks everything the database can't express nicely, before saving.
-// Returns size / colour names (needed to build SKUs).
+// Returns size / colour names (needed to build SKUs) and the product type with its kind.
 export async function checkProduct(input: ProductInput, productId?: number) {
   await checkMasters(input)
+  const typeData = await resolveType(input)
   checkVariantShape(input)
   const names = await loadVariantNames(input)
   await checkBarcodes(input, productId)
-  return names
+  return { ...names, typeData }
+}
+
+// Product type → its kind (stock / sales rules read Product.type). Only a kind sent (import, old screens)
+// → the first type of that kind.
+async function resolveType(input: ProductInput) {
+  if (input.productTypeId) {
+    const t = await prisma.productTypeMaster.findUnique({ where: { id: input.productTypeId } })
+    if (!t) throw ApiError.badRequest('Selected product type no longer exists')
+    return { productTypeId: t.id, type: t.kind }
+  }
+  if (!input.type) throw ApiError.badRequest('Choose a product type')
+  const t = await prisma.productTypeMaster.findFirst({ where: { kind: input.type }, orderBy: { id: 'asc' } })
+  return { productTypeId: t?.id ?? null, type: input.type }
 }
 
 async function checkMasters(input: ProductInput) {

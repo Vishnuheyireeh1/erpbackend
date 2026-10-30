@@ -46,6 +46,9 @@ model GarmentType {
   defaultCharge Decimal  @default(0) @map("default_charge") @db.Decimal(12, 2)
   /// Usual tailor labour — used when the tailor has no own rate for this garment.
   defaultLabour Decimal  @default(0) @map("default_labour") @db.Decimal(12, 2)
+  /// Additional charge options for this garment, e.g. ["Lining", "Piping"] — shown inside the garment on the bill,
+  /// where the amount is typed (empty = not charged).
+  charges       Json     @default("[]")
   sortOrder     Int      @default(0) @map("sort_order")
   isActive      Boolean  @default(true) @map("is_active")
   createdAt     DateTime @default(now()) @map("created_at")

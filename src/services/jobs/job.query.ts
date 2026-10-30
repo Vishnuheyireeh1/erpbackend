@@ -112,3 +112,10 @@ export async function getJob(id: number) {
     cost,
   }
 }
+
+// Additional-charge names used on bills so far, most used first — the bill's charge box suggests them
+// (a new name typed on a bill shows up here once that bill is saved).
+export async function chargeKinds() {
+  const rows = await prisma.jobCost.groupBy({ by: ['kind'], _count: { _all: true }, orderBy: { _count: { kind: 'desc' } }, take: 50 })
+  return rows.map((r) => r.kind)
+}

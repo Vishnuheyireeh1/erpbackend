@@ -5,7 +5,7 @@ import type ExcelJS from 'exceljs'
 
 const rows = [
   ['Product name *', 'The item\'s name, as you say it in the shop.', 'Anarkali party kurti', 'Yes — a new item. The same name can repeat ONLY for its other sizes / colours.'],
-  ['Type *', 'Pick from the list: Ready-made = bought ready · Own-made = we stitch to sell · Raw material = cloth · Accessory = button, lace, zip · Service = stitching charge.', 'Ready-made', 'No — but all rows of one item must have the same Type.'],
+  ['Type *', 'Pick from the Lists sheet: Ready-made = bought ready · Own-made = we stitch to sell · Raw material = cloth · Accessory = button, lace, zip · Service = stitching charge — plus any type added in Masters → Product types.', 'Ready-made', 'No — but all rows of one item must have the same Type.'],
   ['Category *', 'The big group (look in the Lists sheet).', 'Kurtis', 'No'],
   ['Sub category', 'The small group inside it (look in the Lists sheet). Can be empty.', 'Party wear kurtis', 'No'],
   ['Unit *', 'pc = counted in pieces · m = measured in metres.', 'pc', 'No — but all rows of one item must have the same Unit.'],

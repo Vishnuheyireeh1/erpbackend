@@ -53,6 +53,7 @@ export async function removeCostCategory(req: Request, res: Response) {
 export const listGarments = async (req: Request, res: Response) => res.json({ success: true, items: await garmentService.list(req.query.active !== '1') })
 export const createGarment = async (req: Request, res: Response) => res.status(201).json({ success: true, item: await garmentService.create(req.body as GarmentInput, user(req)) })
 export const updateGarment = async (req: Request, res: Response) => res.json({ success: true, item: await garmentService.update(readId(req), req.body as GarmentInput, user(req)) })
+export const addGarmentCharge = async (req: Request, res: Response) => res.json({ success: true, charges: await garmentService.addCharge(readId(req), (req.body as { name: string }).name, user(req)) })
 export async function removeGarment(req: Request, res: Response) {
   await garmentService.remove(readId(req), user(req))
   res.json({ success: true })

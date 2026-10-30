@@ -12,6 +12,7 @@ export type ParsedRow = {
   rowNo: number
   name: string
   type: ProductType
+  productTypeId: number | null
   categoryId: number
   unitId: number
   taxRateId: number | null
@@ -67,9 +68,12 @@ export function parseRow(raw: RawRow, lk: Lookups, createMissing: boolean) {
   const name = text('name', 150, true)
 
   const typeText = v.type?.trim() ?? ''
-  const type = typeText ? typeLabels[typeText.toLowerCase().replace(/[^a-z]/g, '')] : undefined
+  // A product type by name (any added in Masters), else the old built-in words (Finished, In-house …).
+  const named = typeText ? lk.typeByName.get(norm(typeText)) : undefined
+  const type = named?.kind ?? (typeText ? typeLabels[typeText.toLowerCase().replace(/[^a-z]/g, '')] : undefined)
+  const productTypeId = named?.id ?? (type ? lk.typeByKind.get(type) ?? null : null)
   if (!typeText) fail('type', 'Required')
-  else if (!type) fail('type', `"${typeText}" — use Ready-made, Own-made, Raw material, Accessory or Service`)
+  else if (!type) fail('type', `"${typeText}" — use a product type from the Lists sheet (e.g. Ready-made)`)
 
   let categoryId: number | null = null
   const cat = v.category?.trim()
@@ -125,6 +129,7 @@ export function parseRow(raw: RawRow, lk: Lookups, createMissing: boolean) {
     ...row,
     name: name!,
     type: type!,
+    productTypeId,
     categoryId: categoryId!,
     unitId: unitId!,
     taxRateId,

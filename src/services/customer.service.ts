@@ -28,7 +28,7 @@ export async function list(q: CustomerListQuery) {
   const where = customerModel.listWhere(q)
   if (!q.withDues) {
     const [items, total] = await Promise.all([
-      prisma.customer.findMany({ where, orderBy: { name: 'asc' }, skip: (q.page - 1) * q.pageSize, take: q.pageSize }),
+      prisma.customer.findMany({ where, orderBy: q.sort === 'recent' ? [{ updatedAt: 'desc' }, { id: 'desc' }] : { name: 'asc' }, skip: (q.page - 1) * q.pageSize, take: q.pageSize }),
       prisma.customer.count({ where }),
     ])
     const [totals, jobs] = await Promise.all([customerModel.totals(items.map((c) => c.id)), jobCounts(items.map((c) => c.id))])

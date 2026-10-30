@@ -4,7 +4,7 @@ import * as costs from '../services/jobs/job.costs'
 import { setWorkers as assignWorkers } from '../services/jobs/job.workers'
 import * as material from '../services/jobs/job.material'
 import { jobPdf } from '../services/jobs/job.pdf'
-import { getJob, listJobs } from '../services/jobs/job.query'
+import { chargeKinds as usedChargeKinds, getJob, listJobs } from '../services/jobs/job.query'
 import * as jobService from '../services/jobs/job.service'
 import * as jobStatus from '../services/jobs/job.status'
 import { exportJobs } from '../services/export/job.export'
@@ -70,3 +70,7 @@ export async function removePhoto(req: Request, res: Response) {
 
 // Paper order book number — add / correct any time.
 export const setBookNo = async (req: Request, res: Response) => res.json({ success: true, ...(await bookNo.setJobBookNo(readId(req), (req.body as { bookNo: string | null }).bookNo, user(req))) })
+
+export async function chargeKinds(_req: Request, res: Response) {
+  res.json({ success: true, items: await usedChargeKinds() })
+}

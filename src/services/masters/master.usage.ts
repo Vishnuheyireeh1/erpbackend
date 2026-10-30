@@ -12,6 +12,7 @@ function usedBy(n: number, word: string) {
 }
 
 export const masterUsage = {
+  productTypes: async (id: number) => usedBy(await prisma.product.count({ where: { productTypeId: id } }), 'product'),
   async categories(id: number) {
     const [children, products] = await Promise.all([
       prisma.category.count({ where: { parentId: id } }),

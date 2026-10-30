@@ -54,6 +54,7 @@ export async function commitPlan(plan: ImportPlan, user: string) {
           code,
           name: f.name,
           type: f.type,
+          productTypeId: f.productTypeId,
           categoryId: f.categoryId,
           unitId: f.unitId,
           taxRateId: f.taxRateId,

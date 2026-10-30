@@ -3,6 +3,7 @@ import type { Delegate } from '../../models/master.model'
 import type { MasterKey } from '../../validators/master.validator'
 import { categoryRules } from './category.rules'
 import { masterUsage } from './master.usage'
+import { productTypeRules } from './productType.rules'
 
 type Data = Record<string, unknown>
 
@@ -28,6 +29,15 @@ const d = (delegate: unknown) => delegate as Delegate
 
 // Delete-blocking checks live in master.usage.ts — add new modules there.
 export const masterRegistry: Record<MasterKey, MasterConfig> = {
+  productTypes: {
+    label: 'Product type',
+    delegate: d(prisma.productTypeMaster),
+    uniqueText: ['name'],
+    orderBy: [{ id: 'asc' }],
+    include: { _count: { select: { products: true } } },
+    beforeSave: productTypeRules.beforeSave,
+    inUse: masterUsage.productTypes,
+  },
   categories: {
     label: 'Category',
     delegate: d(prisma.category),

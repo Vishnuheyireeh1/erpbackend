@@ -12,9 +12,9 @@ type Tx = Prisma.TransactionClient
 
 const TX_OPTIONS = { timeout: 20_000 }
 
-function productData(input: ProductInput) {
-  const { variants: _variants, ...data } = input
-  return data
+function productData(input: ProductInput, names: Names) {
+  const { variants: _variants, type: _type, productTypeId: _typeId, ...data } = input
+  return { ...data, ...names.typeData }
 }
 
 function variantData(v: VariantInput) {
@@ -51,7 +51,7 @@ export async function createProduct(input: ProductInput) {
 
   return prisma.$transaction(async (tx) => {
     const code = productCode(await nextValue(tx, 'product'))
-    const product = await tx.product.create({ data: { ...productData(input), code } })
+    const product = await tx.product.create({ data: { ...productData(input, names), code } })
     await createVariants(tx, product.id, code, input.variants, names)
     return tx.product.findUniqueOrThrow({ where: { id: product.id }, include: productDetailInclude })
   }, TX_OPTIONS)
@@ -91,7 +91,7 @@ export async function updateProduct(id: number, input: ProductInput) {
   }
 
   return prisma.$transaction(async (tx) => {
-    await tx.product.update({ where: { id }, data: productData(input) })
+    await tx.product.update({ where: { id }, data: productData(input, names) })
     if (removedIds.length > 0) {
       // Later modules: blocked by stock / bill rows referencing the variant (FK Restrict).
       await tx.productVariant.deleteMany({ where: { id: { in: removedIds } } })

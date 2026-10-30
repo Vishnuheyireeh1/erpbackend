@@ -8,6 +8,7 @@ import { jobAddItemsSchema, jobCostEntrySchema, jobWorkersSchema, jobCreateSchem
 // /api/jobs — stitching jobs
 const router = Router()
 router.get('/export', job.exportList)
+router.get('/charge-kinds', job.chargeKinds)
 router.get('/', job.list)
 router.get('/:id', job.getOne)
 router.get('/:id/pdf', job.pdf)

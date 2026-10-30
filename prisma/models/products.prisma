@@ -11,33 +11,50 @@ enum ProductType {
   @@map("product_type")
 }
 
+// Product types the shop names itself (Ready-made, Saree, Kids wear …). Each one WORKS LIKE one of the
+// built-in kinds above — that kind decides stock (Service = no stock) and production (Own-made).
+model ProductTypeMaster {
+  id        Int         @id @default(autoincrement())
+  name      String      @unique @db.VarChar(60)
+  kind      ProductType
+  isActive  Boolean     @default(true) @map("is_active")
+  products  Product[]
+  createdAt DateTime    @default(now()) @map("created_at")
+  updatedAt DateTime    @updatedAt @map("updated_at")
+
+  @@map("product_types")
+}
+
 model Product {
-  id          Int              @id @default(autoincrement())
-  code        String           @unique @db.VarChar(20) // P000001 — generated
-  name        String           @db.VarChar(150)
-  type        ProductType
-  categoryId  Int              @map("category_id")
-  category    Category         @relation(fields: [categoryId], references: [id], onDelete: Restrict)
-  brandId     Int?             @map("brand_id")
-  brand       Brand?           @relation(fields: [brandId], references: [id], onDelete: Restrict)
-  unitId      Int              @map("unit_id")
-  unit        Unit             @relation(fields: [unitId], references: [id], onDelete: Restrict)
-  taxRateId   Int?             @map("tax_rate_id")
-  taxRate     TaxRate?         @relation(fields: [taxRateId], references: [id], onDelete: Restrict)
-  hsnCode     String?          @map("hsn_code") @db.VarChar(8)
-  fabric      String?          @db.VarChar(80)
-  description String?          @db.VarChar(1000)
-  imagePath   String?          @map("image_path") @db.VarChar(255)
-  isActive    Boolean          @default(true) @map("is_active")
-  variants    ProductVariant[]
-  createdAt   DateTime         @default(now()) @map("created_at")
-  updatedAt   DateTime         @updatedAt @map("updated_at")
+  id            Int                @id @default(autoincrement())
+  code          String             @unique @db.VarChar(20) // P000001 — generated
+  name          String             @db.VarChar(150)
+  type          ProductType // copied from productType.kind on save — stock / sales rules read this
+  productTypeId Int?               @map("product_type_id")
+  productType   ProductTypeMaster? @relation(fields: [productTypeId], references: [id], onDelete: Restrict)
+  categoryId    Int                @map("category_id")
+  category      Category           @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  brandId       Int?               @map("brand_id")
+  brand         Brand?             @relation(fields: [brandId], references: [id], onDelete: Restrict)
+  unitId        Int                @map("unit_id")
+  unit          Unit               @relation(fields: [unitId], references: [id], onDelete: Restrict)
+  taxRateId     Int?               @map("tax_rate_id")
+  taxRate       TaxRate?           @relation(fields: [taxRateId], references: [id], onDelete: Restrict)
+  hsnCode       String?            @map("hsn_code") @db.VarChar(8)
+  fabric        String?            @db.VarChar(80)
+  description   String?            @db.VarChar(1000)
+  imagePath     String?            @map("image_path") @db.VarChar(255)
+  isActive      Boolean            @default(true) @map("is_active")
+  variants      ProductVariant[]
+  createdAt     DateTime           @default(now()) @map("created_at")
+  updatedAt     DateTime           @updatedAt @map("updated_at")
 
   // Trigram index → fast "name contains" search on 100k+ products.
   @@index([name(ops: raw("gin_trgm_ops"))], type: Gin, map: "products_name_trgm_idx")
   @@index([categoryId])
   @@index([brandId])
   @@index([type])
+  @@index([productTypeId])
   @@map("products")
 }
 

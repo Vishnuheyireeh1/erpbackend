@@ -12,6 +12,7 @@ const variantInclude = {
 export const productDetailInclude = {
   category: { select: { id: true, name: true, parentId: true, parent: { select: { name: true } } } },
   brand: { select: { id: true, name: true } },
+  productType: { select: { id: true, name: true, kind: true } },
   unit: { select: { id: true, name: true, code: true, allowDecimal: true } },
   taxRate: { select: { id: true, name: true, rate: true } },
   variants: { include: variantInclude, orderBy: [{ id: 'asc' }] },
@@ -20,6 +21,7 @@ export const productDetailInclude = {
 export function listWhere(q: ProductListQuery): Prisma.ProductWhereInput {
   const where: Prisma.ProductWhereInput = {}
   if (q.type) where.type = q.type
+  if (q.productTypeId) where.productTypeId = q.productTypeId
   if (q.brandId) where.brandId = q.brandId
   if (q.status !== 'all') where.isActive = q.status === 'active'
   if (q.categoryId) {
@@ -58,6 +60,7 @@ export async function list(q: ProductListQuery) {
         isActive: true,
         category: { select: { name: true, parent: { select: { name: true } } } },
         brand: { select: { name: true } },
+        productType: { select: { id: true, name: true, kind: true } },
         unit: { select: { code: true } },
         variants: { select: { sellingPrice: true, stockQty: true, stockValue: true } },
       },

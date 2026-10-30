@@ -77,17 +77,20 @@ export async function exportPurchases(res: Response, q: Range & { by?: string },
   return sendExcel(res, { fileName: 'purchases-by-supplier', title: 'Purchases by supplier', filters: [`${r.from} to ${r.to}`], columns, rows: [r.items], user })
 }
 
-const KIND_LABEL: Record<ItemKind, string> = { STITCHING: 'Stitching', SALE: 'Sold', BRAND: 'Brand order' }
+// Same order as the screen: sale items, stitching jobs, brand orders.
+const KIND_LABEL: Record<ItemKind, string> = { SALE: 'Sale item', STITCHING: 'Stitching job', BRAND: 'Brand order' }
+const KIND_ORDER: ItemKind[] = ['SALE', 'STITCHING', 'BRAND']
 export async function exportItemProfit(res: Response, q: Range & { kind?: ItemKind }, user: string) {
   const r = await itemProfit(q)
   type Row = (typeof r.rows)[number] | (typeof r.totals & { kind: null; item: string; avgRate: null; marginPct: null })
-  const rows: Row[] = [...r.rows, { ...r.totals, kind: null, item: 'TOTAL', avgRate: null, marginPct: null }]
+  const sorted = [...r.rows].sort((a, b) => KIND_ORDER.indexOf(a.kind) - KIND_ORDER.indexOf(b.kind) || b.total - a.total)
+  const rows: Row[] = [...sorted, { ...r.totals, kind: null, item: 'TOTAL', avgRate: null, marginPct: null }]
   const columns: ExcelColumn<Row>[] = [
-    { header: 'Item', value: (x) => x.item, width: 28 }, { header: 'Type', value: (x) => (x.kind ? KIND_LABEL[x.kind] : ''), width: 12 },
+    { header: 'Item', value: (x) => x.item, width: 28 }, { header: 'Type', value: (x) => (x.kind ? KIND_LABEL[x.kind] : ''), width: 14 },
     { header: 'Pieces / qty', value: (x) => x.pieces, type: 'qty' }, money('Avg rate', (x) => x.avgRate), money('Total (before GST)', (x) => x.total),
     money('Tailor pay', (x) => x.tailor), money('Embroidery', (x) => x.embroidery), money('Other costs', (x) => x.other),
     money('Cloth / item cost', (x) => x.cloth), money('Profit', (x) => x.profit), { header: 'Margin %', value: (x) => x.marginPct, type: 'number', width: 10 },
   ]
-  const filters = [`${r.from} to ${r.to}`, r.kind ? KIND_LABEL[r.kind] : 'Stitching, sold items and brand orders']
+  const filters = [`${r.from} to ${r.to}`, r.kind ? `${KIND_LABEL[r.kind]}s` : 'Sale items, stitching jobs and brand orders']
   return sendExcel(res, { fileName: 'profit-by-item', title: 'Profit by item', filters, columns, rows: [rows], user })
 }

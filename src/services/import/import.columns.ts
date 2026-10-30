@@ -9,7 +9,7 @@ export type ColumnDef = { key: ColumnKey; header: string; required?: boolean; wi
 
 export const importColumns: ColumnDef[] = [
   { key: 'name', header: 'Product name', required: true, width: 32, note: 'Same name + category on several rows = one product with variants' },
-  { key: 'type', header: 'Type', required: true, width: 16, note: 'Ready-made, Own-made, Raw material, Accessory or Service' },
+  { key: 'type', header: 'Type', required: true, width: 16, note: 'A product type from the Lists sheet, e.g. Ready-made, Raw material, Service' },
   { key: 'category', header: 'Category', required: true, width: 22, note: 'Main category (e.g. Kurtis) — see the Lists sheet' },
   { key: 'subcategory', header: 'Sub category', width: 24, note: 'Optional: sub category under it (e.g. Party wear kurtis)' },
   { key: 'unit', header: 'Unit', required: true, width: 10, note: 'Name or code: Piece / pc, Metre / m …' },

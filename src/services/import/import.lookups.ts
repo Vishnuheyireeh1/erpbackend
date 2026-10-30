@@ -6,7 +6,8 @@ const norm = (s: string) => s.trim().toLowerCase().replace(/\s+/g, ' ')
 const CHUNK = 5_000
 
 export async function loadLookups() {
-  const [categories, units, taxRates, sizes, colours] = await Promise.all([
+  const [productTypes, categories, units, taxRates, sizes, colours] = await Promise.all([
+    prisma.productTypeMaster.findMany({ orderBy: { id: 'asc' }, select: { id: true, name: true, kind: true } }),
     prisma.category.findMany({ select: { id: true, name: true, parentId: true, parent: { select: { name: true } } } }),
     prisma.unit.findMany({ select: { id: true, name: true, code: true, allowDecimal: true } }),
     prisma.taxRate.findMany({ select: { id: true, rate: true } }),
@@ -29,7 +30,13 @@ export async function loadLookups() {
     unitByKey.set(norm(u.code), u.id)
   }
 
+  // Product type by its name ("Saree"), and the first type of each kind (old files that say "Finished").
+  const typeByKind = new Map<string, number>()
+  for (const t of [...productTypes].reverse()) typeByKind.set(t.kind, t.id)
+
   return {
+    typeByName: new Map(productTypes.map((t) => [norm(t.name), t])),
+    typeByKind,
     categoryByPath,
     categoryByName,
     unitByKey,

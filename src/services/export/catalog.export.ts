@@ -18,6 +18,7 @@ const variantSelect = {
   product: {
     select: {
       code: true, name: true, type: true, hsnCode: true, fabric: true, isActive: true,
+      productType: { select: { name: true } },
       category: { select: { name: true, parent: { select: { name: true } } } },
       unit: { select: { code: true } },
       taxRate: { select: { rate: true } },
@@ -39,7 +40,7 @@ function fetchVariants(q: ProductListQuery, skip: number, take: number) {
 const productColumns: ExcelColumn<VariantRow>[] = [
   { header: 'Product code', value: (v) => v.product.code, width: 12 },
   { header: 'Product name', value: (v) => v.product.name, width: 32 },
-  { header: 'Type', value: (v) => typeLabels[v.product.type], width: 14 },
+  { header: 'Type', value: (v) => v.product.productType?.name ?? typeLabels[v.product.type], width: 14 },
   { header: 'Category', value: (v) => (v.product.category.parent ? `${v.product.category.parent.name} > ${v.product.category.name}` : v.product.category.name), width: 30 },
   { header: 'Unit', value: (v) => v.product.unit.code, width: 8 },
   { header: 'HSN', value: (v) => v.product.hsnCode, width: 10 },
@@ -60,11 +61,12 @@ const productColumns: ExcelColumn<VariantRow>[] = [
 ]
 
 // One row per size / colour — the most useful shape for checking prices and stock in Excel.
-export function exportProducts(res: Response, q: ProductListQuery, user: string) {
+export async function exportProducts(res: Response, q: ProductListQuery, user: string) {
+  const chosen = q.productTypeId ? await prisma.productTypeMaster.findUnique({ where: { id: q.productTypeId }, select: { name: true } }) : null
   return sendExcel(res, {
     fileName: 'products',
     title: 'Products',
-    filters: filterText([['Search', q.search], ['Type', q.type && typeLabels[q.type]], ['Status', q.status]]),
+    filters: filterText([['Search', q.search], ['Type', chosen?.name ?? (q.type && typeLabels[q.type])], ['Status', q.status]]),
     columns: productColumns,
     rows: inBatches((skip, take) => fetchVariants(q, skip, take)),
     user,
@@ -73,7 +75,10 @@ export function exportProducts(res: Response, q: ProductListQuery, user: string)
 
 type MasterRow = Record<string, unknown> & { name: string; isActive: boolean }
 
+const kindLabel = (k: unknown) => ({ READY_MADE: 'Item with stock', ACCESSORY: 'Item with stock', RAW_MATERIAL: 'Raw material', FINISHED: 'Own-made', SERVICE: 'Service (no stock)' })[String(k)] ?? String(k)
+
 const masterColumns: Record<MasterKey, ExcelColumn<MasterRow>[]> = {
+  productTypes: [{ header: 'Name', value: (r) => r.name }, { header: 'Works like', value: (r) => kindLabel(r.kind), width: 18 }, { header: 'Products', value: (r) => (r._count as { products: number }).products, type: 'number', width: 10 }],
   categories: [
     { header: 'Name', value: (r) => r.name },
     { header: 'Main category', value: (r) => (r.parent as { name: string } | null)?.name ?? '(main)' },
@@ -87,7 +92,7 @@ const masterColumns: Record<MasterKey, ExcelColumn<MasterRow>[]> = {
 }
 
 const masterTitles: Record<MasterKey, string> = {
-  categories: 'Categories', brands: 'Brands', units: 'Units', sizes: 'Sizes', colours: 'Colours', taxRates: 'GST rates',
+  productTypes: 'Product types', categories: 'Categories', brands: 'Brands', units: 'Units', sizes: 'Sizes', colours: 'Colours', taxRates: 'GST rates',
 }
 
 export async function exportMaster(res: Response, key: MasterKey, q: ListQuery, user: string) {

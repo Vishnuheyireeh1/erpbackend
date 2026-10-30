@@ -30,6 +30,8 @@ export const customerListSchema = z.object({
   status: z.enum(['all', 'active', 'inactive']).default('active'),
   withDues: z.coerce.boolean().optional(),
   kind: z.enum(['stitching', 'shop']).optional(), // stitching = has stitching jobs · shop = only bought items
+  sort: z.enum(['name', 'recent']).default('name'), // recent = newest added / edited first (billing customer picker)
+  match: z.enum(['any', 'start']).default('any'), // start = name / phone begins with the search (billing customer picker)
   page: z.coerce.number().int().min(1).default(1),
   pageSize: z.coerce.number().int().min(1).max(100).default(20),
 })

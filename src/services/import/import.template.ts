@@ -4,7 +4,6 @@ import { importColumns } from './import.columns'
 import { addHelpSheet } from './import.help'
 
 const BRAND_RED = 'FFB5121B'
-const TYPES = ['Ready-made', 'Own-made', 'Raw material', 'Accessory', 'Service']
 
 const examples = [
   ['Anarkali party kurti', 'Ready-made', 'Kurtis', 'Party wear kurtis', 'pc', 'Sairandhri Originals', 5, 6204, 'Georgette', 'M', 'Red', 700, 1450, 1599, 2, 5, '', '', 'Example — delete these rows'],
@@ -14,7 +13,8 @@ const examples = [
 
 // Lists sheet: every valid value, so people can copy instead of guessing.
 async function addListsSheet(wb: ExcelJS.Workbook) {
-  const [categories, units, taxRates, sizes, colours] = await Promise.all([
+  const [types, categories, units, taxRates, sizes, colours] = await Promise.all([
+    prisma.productTypeMaster.findMany({ where: { isActive: true }, orderBy: { id: 'asc' }, select: { name: true } }),
     prisma.category.findMany({ where: { isActive: true }, include: { parent: true } }),
     prisma.unit.findMany({ where: { isActive: true }, orderBy: { name: 'asc' } }),
     prisma.taxRate.findMany({ where: { isActive: true }, orderBy: { rate: 'asc' } }),
@@ -26,7 +26,7 @@ async function addListsSheet(wb: ExcelJS.Workbook) {
     .map((c) => (c.parent ? [c.parent.name, c.name] : [c.name, '']))
     .sort((a, b) => a[0].localeCompare(b[0]) || a[1].localeCompare(b[1]))
   const columns: [string, string[]][] = [
-    ['Type', TYPES],
+    ['Type', types.map((t) => t.name)],
     ['Category', pairs.map((p) => p[0])],
     ['Sub category', pairs.map((p) => p[1])],
     ['Unit', units.map((u) => `${u.code} (${u.name})`)],
@@ -42,7 +42,7 @@ async function addListsSheet(wb: ExcelJS.Workbook) {
     values.forEach((v, r) => (sheet.getCell(r + 2, i + 1).value = v))
   })
   sheet.getRow(1).font = { bold: true }
-  return TYPES.length
+  return types.length
 }
 
 // Builds the .xlsx template users fill in.

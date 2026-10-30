@@ -4,12 +4,21 @@ import type { CustomerListQuery } from '../validators/sales.validator'
 
 // Data access for customers and their money totals.
 
-export function listWhere(q: Pick<CustomerListQuery, 'search' | 'status' | 'kind'>): Prisma.CustomerWhereInput {
+export function listWhere(q: Pick<CustomerListQuery, 'search' | 'status' | 'kind'> & { match?: 'any' | 'start' }): Prisma.CustomerWhereInput {
   const where: Prisma.CustomerWhereInput = {}
   if (q.status !== 'all') where.isActive = q.status === 'active'
   if (q.kind === 'stitching') where.jobs = { some: { status: { not: 'CANCELLED' } } }
   if (q.kind === 'shop') where.jobs = { none: { status: { not: 'CANCELLED' } } }
-  if (q.search) {
+  if (q.search && q.match === 'start') {
+    // Bill customer picker: name (or any word of it) / phone starting with what is typed — "v" → Vishnu, Anu Varma.
+    const s = q.search
+    where.OR = [
+      { name: { startsWith: s, mode: 'insensitive' } },
+      { name: { contains: ` ${s}`, mode: 'insensitive' } },
+      { phone: { startsWith: s.replace(/\s/g, '') } },
+      { code: s.toUpperCase() },
+    ]
+  } else if (q.search) {
     const s = q.search
     where.OR = [
       { name: { contains: s, mode: 'insensitive' } },

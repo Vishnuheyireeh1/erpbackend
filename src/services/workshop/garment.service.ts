@@ -46,11 +46,27 @@ async function setCostDefaultsTx(tx: Prisma.TransactionClient, garmentTypeId: nu
   if (keep.length) await tx.garmentCostDefault.createMany({ data: keep.map((r) => ({ ...r, garmentTypeId })) })
 }
 
+// A charge typed on a bill that the garment doesn't list yet → added to its options (shown next time).
+export async function addCharge(id: number, name: string, user: string) {
+  const g = await prisma.garmentType.findUnique({ where: { id } })
+  if (!g) throw ApiError.notFound('Garment type not found')
+  const list = (g.charges as string[]) ?? []
+  if (list.some((c) => c.toLowerCase() === name.toLowerCase())) return list
+  if (list.length >= 20) return list // the garment form allows at most 20
+  const charges = [...list, name]
+  await prisma.$transaction(async (tx) => {
+    await tx.garmentType.update({ where: { id }, data: { charges } })
+    await audit(tx, { actor: user, action: 'garment.charge', entity: 'garment_type', entityId: id, summary: `${g.name}: charge "${name}" added from a bill` })
+  })
+  return charges
+}
+
 // Hard delete only when nothing uses it; otherwise make it Inactive.
 export async function remove(id: number, user: string) {
-  const g = await prisma.garmentType.findUnique({ where: { id }, include: { _count: { select: { measurements: true, jobItems: true } } } })
+  const g = await prisma.garmentType.findUnique({ where: { id }, include: { _count: { select: { measurements: true, jobItems: true, brandItems: true } } } })
   if (!g) throw ApiError.notFound('Garment type not found')
   if (g._count.jobItems > 0) throw ApiError.conflict(`${g.name} is used on ${g._count.jobItems} job(s) — make it Inactive instead`)
+  if (g._count.brandItems > 0) throw ApiError.conflict(`${g.name} is used on ${g._count.brandItems} brand order piece(s) — make it Inactive instead`)
   if (g._count.measurements > 0) throw ApiError.conflict(`${g.name} has ${g._count.measurements} saved measurement(s) — make it Inactive instead`)
   await prisma.$transaction(async (tx) => {
     await tx.garmentType.delete({ where: { id } })

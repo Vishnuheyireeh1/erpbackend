@@ -7,10 +7,12 @@ import { makingStats } from './product/product.making'
 
 export { createProduct, updateProduct } from './product/product.save'
 
-// List rows carry a price range instead of every variant. Own-made list (type FINISHED) also gets making stats.
+// List rows carry a price range instead of every variant. An Own-made list (filtered to a type that works like
+// Own-made) also gets making stats.
 export async function list(query: ProductListQuery) {
   const { items, total } = await productModel.list(query)
-  const made = query.type === 'FINISHED' ? await makingStats(items.map((p) => p.id)) : null
+  const ownMade = query.type === 'FINISHED' || (!!query.productTypeId && items.length > 0 && items.every((p) => p.type === 'FINISHED'))
+  const made = ownMade ? await makingStats(items.map((p) => p.id)) : null
   const rows = items.map(({ variants, ...p }) => {
     const prices = variants.map((v) => Number(v.sellingPrice))
     const totalStock = variants.reduce((sum, v) => sum + Number(v.stockQty), 0)

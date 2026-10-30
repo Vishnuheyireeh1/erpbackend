@@ -1,7 +1,7 @@
 import { Router } from 'express'
 import * as workshop from '../controllers/workshop.controller'
 import { validateBody } from '../middlewares/validate.middleware'
-import { costCategorySchema, garmentSchema, measurementSchema, tailorPaymentSchema } from '../validators/workshop.validator'
+import { costCategorySchema, garmentChargeSchema, garmentSchema, measurementSchema, tailorPaymentSchema } from '../validators/workshop.validator'
 
 // /api/tailors, /api/garment-types (customer measurements live under /api/customers/:id/measurements)
 export const tailorRoutes = Router()
@@ -30,6 +30,7 @@ garmentRoutes.get('/export', workshop.exportGarments)
 garmentRoutes.get('/', workshop.listGarments)
 garmentRoutes.post('/', validateBody(garmentSchema), workshop.createGarment)
 garmentRoutes.put('/:id', validateBody(garmentSchema), workshop.updateGarment)
+garmentRoutes.post('/:id/charges', validateBody(garmentChargeSchema), workshop.addGarmentCharge)
 garmentRoutes.delete('/:id', workshop.removeGarment)
 
 export const measurementRoutes = Router({ mergeParams: true })

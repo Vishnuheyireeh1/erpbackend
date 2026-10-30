@@ -18,7 +18,7 @@ const fmtDate = (d: Date) => d.toLocaleDateString('en-IN', { day: '2-digit', mon
 export function jobBillLines(job: Job) {
   return [
     ...job.items.map((i) => ({ name: i.description, rate: Number(i.chargeRate), qty: String(i.qty), amount: i.qty * Number(i.chargeRate), sold: false })),
-    ...job.costs.filter((c) => Number(c.charge) > 0).map((c) => ({ name: c.description ? `${c.kind} · ${c.description}` : c.kind, rate: Number(c.charge), qty: '1', amount: Number(c.charge), sold: false })),
+    ...job.costs.filter((c) => Number(c.charge) > 0).map((c) => ({ name: c.description ? `${c.kind} (${c.description})` : c.kind, rate: Number(c.charge), qty: '1', amount: Number(c.charge), sold: false })),
     ...job.materials.filter((m) => !m.included).map((m) => ({
       name: `${m.description}${Number(m.discountPct) ? ` (-${Number(m.discountPct)}%)` : ''}${Number(m.returnedQty) > 0 ? ` [${Number(m.returnedQty)} returned]` : ''}`,
       rate: Number(m.rate), qty: String(Number(m.qty)), amount: Number(m.qty) * Number(m.rate) * (1 - Number(m.discountPct) / 100), sold: true,
