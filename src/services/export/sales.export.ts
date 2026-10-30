@@ -48,21 +48,23 @@ export async function exportCustomerStatement(res: Response, id: number, user: s
 export async function exportSales(res: Response, q: BillFilters, user: string) {
   type Row = BillItem
   const columns: ExcelColumn<Row>[] = [
-    { header: 'Type', value: (b) => (b.kind === 'JOB' ? 'Job sale' : 'Shop sale'), width: 10 },
+    { header: 'Type', value: (b) => (b.kind === 'JOB' ? 'Job bill' : 'Sales bill'), width: 11 },
     { header: 'Bill no', value: (b) => b.docNo, width: 20 },
-    { header: 'Book no', value: (b) => b.bookNo, width: 10 },
+    { header: 'SJ number', value: (b) => b.bookNo, width: 10 },
     { header: 'Date', value: (b) => b.docDate, type: 'date', width: 13 },
     { header: 'Customer', value: (b) => b.customerName, width: 26 },
     { header: 'Phone', value: (b) => b.customerPhone, width: 14 },
     { header: 'Taxable', value: (b) => b.taxable, type: 'money' },
     { header: 'GST', value: (b) => b.gst, type: 'money' },
-    { header: 'Total', value: (b) => b.grandTotal, type: 'money' },
+    { header: 'Stitching', value: (b) => (b.kind === 'JOB' ? b.stitchTotal : null), type: 'money' },
+    { header: 'Items sold', value: (b) => b.itemsTotal, type: 'money' },
+    { header: 'Bill total', value: (b) => b.grandTotal, type: 'money' },
     { header: 'Received', value: (b) => b.paidAmount, type: 'money' },
     { header: 'Returned', value: (b) => b.returnedAmount, type: 'money' },
     { header: 'Due', value: (b) => (b.status === 'POSTED' ? b.dueAmount : null), type: 'money' },
     { header: 'Status', value: (b) => (b.status === 'POSTED' ? 'Posted' : 'Cancelled'), width: 11 },
   ]
-  const filters = [...docFilters(q), ...filterText([['Type', q.kind === 'JOB' ? 'Job sales' : q.kind === 'SHOP' ? 'Shop sales' : undefined]])]
+  const filters = [...docFilters(q), ...filterText([['Type', q.kind === 'JOB' ? 'Job bills (stitching)' : q.kind === 'SHOP' ? 'Sales bills (all items sold, incl. on job bills)' : undefined]])]
   return sendExcel(res, { fileName: 'sales-bills', title: 'Sales bills', filters, columns, rows: inBatches((skip, take) => billRows(q, skip, take, q.order === 'oldest' ? 'asc' : 'desc')), user })
 }
 

@@ -30,7 +30,7 @@ function header(doc: Doc, sale: Sale, p: Awaited<ReturnType<typeof getSetting<'b
   y = doc.y + 6
   hr(doc, y)
   y += 8
-  text(doc, `Bill No: ${sale.docNo}${sale.bookNo ? `   (Book No: ${sale.bookNo})` : ''}`, L, y, { bold: true })
+  text(doc, `Bill No: ${sale.docNo}${sale.bookNo ? `   (SJ No: ${sale.bookNo})` : ''}`, L, y, { bold: true })
   text(doc, `Date: ${sale.docDate.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}  ${sale.createdAt.toLocaleTimeString('en-IN', { timeZone: 'Asia/Kolkata', hour: '2-digit', minute: '2-digit' })}`, 330, y, { width: R - 330, align: 'right' })
   y += 14
   text(doc, `Customer: ${sale.customerName}${sale.customerPhone ? `  ·  ${sale.customerPhone}` : ''}`, L, y)

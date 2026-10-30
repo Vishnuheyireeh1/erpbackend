@@ -66,7 +66,7 @@ export const jobCreateSchema = z
   })
   .refine((j) => !j.docDate || j.expectedDate >= j.docDate, { message: 'Ready-by date is before the order date', path: ['expectedDate'] })
   // Stitching bills carry the paper book number (owner 2026-10-28); alterations are booked from the old job.
-  .refine((j) => j.parentJobId || j.bookNo, { message: 'Enter the book no. — it is needed for stitching', path: ['bookNo'] })
+  .refine((j) => j.parentJobId || j.bookNo, { message: 'Enter the SJ number — it is needed for stitching', path: ['bookNo'] })
 
 export const jobUpdateSchema = z.object(jobBase)
 

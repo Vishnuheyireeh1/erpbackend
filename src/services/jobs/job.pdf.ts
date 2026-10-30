@@ -36,7 +36,7 @@ function header(doc: Doc, job: Job, p: Awaited<ReturnType<typeof getSetting<'bus
   y = doc.y + 6
   hr(doc, y)
   y += 8
-  text(doc, `Job No: ${job.docNo}${job.bookNo ? `   (Book No: ${job.bookNo})` : ''}`, L, y, { bold: true })
+  text(doc, `Job No: ${job.docNo}${job.bookNo ? `   (SJ No: ${job.bookNo})` : ''}`, L, y, { bold: true })
   text(doc, `Booked: ${fmtDate(job.docDate)}  ${job.createdAt.toLocaleTimeString('en-IN', { timeZone: 'Asia/Kolkata', hour: '2-digit', minute: '2-digit' })}`, 330, y, { width: R - 330, align: 'right' })
   y += 14
   text(doc, `Customer: ${job.customerName}${job.customerPhone ? `  ·  ${job.customerPhone}` : ''}`, L, y)

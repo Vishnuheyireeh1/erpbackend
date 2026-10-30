@@ -12,7 +12,7 @@ async function clash(kind: 'sale' | 'job', id: number, bookNo: string | null) {
   const other = kind === 'sale'
     ? await prisma.salesInvoice.findFirst({ where: { bookNo, id: { not: id }, status: 'POSTED' }, select: { docNo: true } })
     : await prisma.stitchingJob.findFirst({ where: { bookNo, id: { not: id }, status: { not: 'CANCELLED' } }, select: { docNo: true } })
-  return other ? `Book no. ${bookNo} is also on ${other.docNo}` : null
+  return other ? `SJ number ${bookNo} is also on ${other.docNo}` : null
 }
 
 export async function setSaleBookNo(id: number, bookNo: string | null, user: string) {
@@ -20,7 +20,7 @@ export async function setSaleBookNo(id: number, bookNo: string | null, user: str
   if (!s) throw ApiError.notFound('Bill not found')
   await prisma.$transaction(async (tx) => {
     await tx.salesInvoice.update({ where: { id }, data: { bookNo } })
-    await audit(tx, { actor: user, action: 'sale.book_no', entity: 'sale', entityId: id, summary: `${s.docNo}: book no. ${s.bookNo ?? '—'} → ${bookNo ?? '—'}` })
+    await audit(tx, { actor: user, action: 'sale.book_no', entity: 'sale', entityId: id, summary: `${s.docNo}: SJ number ${s.bookNo ?? '—'} → ${bookNo ?? '—'}` })
   })
   return { item: await getSale(id), warning: await clash('sale', id, bookNo) }
 }
@@ -30,7 +30,7 @@ export async function setJobBookNo(id: number, bookNo: string | null, user: stri
   if (!j) throw ApiError.notFound('Job not found')
   await prisma.$transaction(async (tx) => {
     await tx.stitchingJob.update({ where: { id }, data: { bookNo } })
-    await audit(tx, { actor: user, action: 'job.book_no', entity: 'job', entityId: id, summary: `${j.docNo}: book no. ${j.bookNo ?? '—'} → ${bookNo ?? '—'}` })
+    await audit(tx, { actor: user, action: 'job.book_no', entity: 'job', entityId: id, summary: `${j.docNo}: SJ number ${j.bookNo ?? '—'} → ${bookNo ?? '—'}` })
   })
   return { item: await getJob(id), warning: await clash('job', id, bookNo) }
 }

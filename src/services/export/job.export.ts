@@ -20,7 +20,7 @@ export async function exportJobs(res: Response, q: JobListQuery, user: string) {
   const other = (j: Row) => j.costEntries.reduce((s, c) => s + Number(c.amount), 0)
   const columns: ExcelColumn<Row>[] = [
     { header: 'Job no', value: (j) => j.docNo, width: 20 },
-    { header: 'Book no', value: (j) => j.bookNo, width: 10 },
+    { header: 'SJ number', value: (j) => j.bookNo, width: 10 },
     { header: 'Order date', value: (j) => j.docDate, type: 'date', width: 13 },
     { header: 'Ready by', value: (j) => j.expectedDate, type: 'date', width: 13 },
     { header: 'Customer', value: (j) => j.customerName, width: 24 },
