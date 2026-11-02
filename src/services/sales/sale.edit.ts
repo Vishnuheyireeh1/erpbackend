@@ -34,7 +34,7 @@ export async function editSale(id: number, input: SaleInput, user: string) {
 
   const customer = bill.customerId ? await prisma.customer.findUnique({ where: { id: bill.customerId } }) : null
   const items = await loadSaleItems(input.lines.map((l) => l.variantId))
-  const [profile, apparelRule, allowNegative] = await Promise.all([getSetting('business.profile'), getSetting('billing.apparelGstRule'), getSetting('inventory.allowNegativeStock')])
+  const [profile, apparelRule] = await Promise.all([getSetting('business.profile'), getSetting('billing.apparelGstRule')])
   const taxMode = taxModeFor(profile.stateCode, customer?.stateCode)
   const calc = calcSale({
     lines: input.lines.map((l) => ({ ...l, productGstRate: items.get(l.variantId)!.gstRate, hsnCode: items.get(l.variantId)!.hsnCode })),
@@ -51,7 +51,7 @@ export async function editSale(id: number, input: SaleInput, user: string) {
     const [row] = await tx.$queryRaw<{ status: string }[]>`SELECT status FROM sales_invoices WHERE id = ${id} FOR UPDATE`
     if (row?.status !== 'POSTED') throw ApiError.conflict(`${bill.docNo} was just cancelled`)
     const services = new Set((await tx.productVariant.findMany({ where: { id: { in: [...bill.lines.map((l) => l.variantId), ...input.lines.map((l) => l.variantId)] }, product: { type: 'SERVICE' } }, select: { id: true } })).map((v) => v.id))
-    const ref = { refType: 'INV', refId: id, refNo: bill.docNo, date, user, allowNegative }
+    const ref = { refType: 'INV', refId: id, refNo: bill.docNo, date, user, allowNegative: true } // a bill never stops for low stock
     // Old lines back to stock at their own cost, then the new lines out at today's average.
     await postMovements(tx, bill.lines.filter((l) => !services.has(l.variantId)).map((l) => ({ variantId: l.variantId, qty: Number(l.qty), unitCost: Number(l.unitCost), type: 'CANCELLATION' as const, note: `Edited ${bill.docNo}` })), ref)
     const goods = input.lines.map((l, i) => ({ l, i })).filter(({ l }) => !services.has(l.variantId))

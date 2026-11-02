@@ -69,6 +69,8 @@ model BrandPayment {
   docNo        String         @unique @map("doc_no") @db.VarChar(30)
   brandId      Int            @map("brand_id")
   brand        PartnerBrand   @relation(fields: [brandId], references: [id], onDelete: Restrict)
+  orderId      Int?           @map("order_id") // the order it was received on (old / general payments: none)
+  order        BrandOrder?    @relation(fields: [orderId], references: [id], onDelete: SetNull)
   docDate      DateTime       @map("doc_date") @db.Date
   amount       Decimal        @db.Decimal(14, 2)
   mode         PaymentMode
@@ -82,6 +84,7 @@ model BrandPayment {
   cancelReason String?        @map("cancel_reason") @db.VarChar(255)
 
   @@index([brandId, docDate])
+  @@index([orderId])
   @@index([docDate])
   @@map("brand_payments")
 }

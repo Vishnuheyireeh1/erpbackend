@@ -61,7 +61,7 @@ export async function returnMaterialsTx(tx: Tx, order: { id: number; docNo: stri
 // Order page: add stock items to a piece that is not delivered yet.
 export async function addMaterials(orderId: number, itemId: number, input: BrandMaterialInput[], user: string) {
   const lines = await priceMaterials(input)
-  const allowNegative = await getSetting('inventory.allowNegativeStock')
+  const allowNegative = true // an order never stops for low stock — stock just goes below zero
   await prisma.$transaction(async (tx) => {
     const order = await lockOpenOrder(tx, orderId)
     const item = await tx.brandOrderItem.findFirst({ where: { id: itemId, orderId } })

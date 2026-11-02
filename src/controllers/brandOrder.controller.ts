@@ -3,9 +3,10 @@ import * as costs from '../services/brands/brandOrder.costs'
 import * as material from '../services/brands/brandOrder.material'
 import { getOrder, listOrders } from '../services/brands/brandOrder.query'
 import * as orders from '../services/brands/brandOrder.service'
+import { setWorkers as setWorkersOf } from '../services/brands/brandOrder.workers'
 import { exportBrandOrders } from '../services/export/brand.export'
 import { ApiError } from '../utils/ApiError'
-import { brandOrderListSchema, type BrandCostInput, type BrandOrderCreateInput, type BrandOrderUpdateInput } from '../validators/brandOrder.validator'
+import { brandOrderListSchema, type BrandCostInput, type BrandOrderCreateInput, type BrandOrderUpdateInput, type BrandWorkersInput } from '../validators/brandOrder.validator'
 
 // /api/brand-orders — orders from other brands, stitched with their label.
 
@@ -23,6 +24,11 @@ const user = (req: Request) => req.admin!.username
 
 export const list = async (req: Request, res: Response) => res.json({ success: true, ...(await listOrders(listQuery(req))) })
 export const exportList = (req: Request, res: Response) => exportBrandOrders(res, listQuery(req), user(req))
+export const setWorkers = async (req: Request, res: Response) => {
+  const id = readId(req)
+  await setWorkersOf(id, req.body as BrandWorkersInput, user(req))
+  res.json({ success: true, item: await getOrder(id) })
+}
 export const getOne = async (req: Request, res: Response) => res.json({ success: true, item: await getOrder(readId(req)) })
 
 export async function create(req: Request, res: Response) {

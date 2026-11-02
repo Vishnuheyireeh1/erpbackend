@@ -22,7 +22,7 @@ export async function exportJobs(res: Response, q: JobListQuery, user: string) {
     { header: 'Job no', value: (j) => j.docNo, width: 20 },
     { header: 'SJ number', value: (j) => j.bookNo, width: 10 },
     { header: 'Order date', value: (j) => j.docDate, type: 'date', width: 13 },
-    { header: 'Ready by', value: (j) => j.expectedDate, type: 'date', width: 13 },
+    { header: 'Expected delivery', value: (j) => j.expectedDate, type: 'date', width: 13 },
     { header: 'Customer', value: (j) => j.customerName, width: 24 },
     { header: 'Phone', value: (j) => j.customerPhone, width: 14 },
     { header: 'Garments', value: (j) => j.items.map((i) => `${i.qty} × ${i.description}`).join(', '), width: 34 },

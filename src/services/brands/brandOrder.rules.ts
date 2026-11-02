@@ -5,16 +5,20 @@ import type { BrandPieceInput } from '../../validators/brandOrder.validator'
 
 type Tx = Prisma.TransactionClient
 
-// Garments and tailors on a brand order must exist; NEW pieces need active ones. Salaried tailors get no per-piece pay.
+// Garments, tailors, cutting masters and measurers on a brand order must exist; NEW pieces need active ones.
+// Salaried workers get no per-piece pay.
 export async function loadPieceRefs(items: BrandPieceInput[], existingIds: Set<number> = new Set()) {
   const garmentIds = [...new Set(items.map((i) => i.garmentTypeId))]
-  const tailorIds = [...new Set(items.map((i) => i.tailorId).filter((x): x is number => !!x))]
-  const [garments, tailors] = await Promise.all([
+  const tailorIds = [...new Set(items.flatMap((i) => [i.tailorId, i.cutting?.tailorId]).filter((x): x is number => !!x))]
+  const staffIds = [...new Set(items.map((i) => i.measuredById).filter((x): x is number => !!x))]
+  const [garments, tailors, staff] = await Promise.all([
     prisma.garmentType.findMany({ where: { id: { in: garmentIds } }, select: { id: true, name: true, isActive: true } }),
     prisma.tailor.findMany({ where: { id: { in: tailorIds } }, select: { id: true, name: true, isActive: true, payType: true } }),
+    prisma.staff.findMany({ where: { id: { in: staffIds } }, select: { id: true } }),
   ])
   const g = new Map(garments.map((x) => [x.id, x]))
   const t = new Map(tailors.map((x) => [x.id, x]))
+  const st = new Set(staff.map((x) => x.id))
   for (const i of items) {
     const old = !!i.id && existingIds.has(i.id)
     const garment = g.get(i.garmentTypeId)
@@ -25,10 +29,17 @@ export async function loadPieceRefs(items: BrandPieceInput[], existingIds: Set<n
       if (!tailor) throw ApiError.badRequest('A tailor on the order no longer exists')
       if (!tailor.isActive && !old) throw ApiError.badRequest(`Tailor ${tailor.name} is inactive`)
     }
+    if (i.cutting) {
+      const cutter = t.get(i.cutting.tailorId)
+      if (!cutter) throw ApiError.badRequest('The cutting master on the order no longer exists')
+      if (!cutter.isActive && !old) throw ApiError.badRequest(`${cutter.name} is inactive`)
+    }
+    if (i.measuredById && !st.has(i.measuredById)) throw ApiError.badRequest('The staff who measured no longer exists')
   }
   return {
     garmentName: (id: number) => g.get(id)!.name,
     payFor: (i: BrandPieceInput) => (i.tailorId && t.get(i.tailorId)?.payType === 'PIECE' ? i.labourRate : 0),
+    worker: (id: number) => t.get(id)!,
   }
 }
 export type PieceRefs = Awaited<ReturnType<typeof loadPieceRefs>>
@@ -46,6 +57,7 @@ export function pieceData(i: BrandPieceInput, sortOrder: number, refs: PieceRefs
     instructions: i.instructions,
     tailorId: i.tailorId,
     labourRate: refs.payFor(i),
+    measuredById: i.measuredById,
     sortOrder,
   }
 }

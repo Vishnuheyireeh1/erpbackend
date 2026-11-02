@@ -40,6 +40,7 @@ model BrandOrder {
   items        BrandOrderItem[]
   materials    BrandOrderMaterial[]
   bills        BrandBill[]
+  payments     BrandPayment[]
   clothEntries BrandClothEntry[]
   costs        BrandOrderCost[]
 
@@ -66,6 +67,8 @@ model BrandOrderItem {
   tailorId      Int?            @map("tailor_id")
   tailor        Tailor?         @relation(fields: [tailorId], references: [id], onDelete: Restrict)
   labourRate    Decimal         @default(0) @map("labour_rate") @db.Decimal(12, 2) // per piece to the tailor
+  measuredById  Int?            @map("measured_by_id") // staff who took the measurements (optional)
+  measuredBy    Staff?          @relation("BrandItemMeasuredBy", fields: [measuredById], references: [id], onDelete: SetNull)
   stage         BrandPieceStage @default(IN_WORK)
   readyOn       DateTime?       @map("ready_on") @db.Date // tailor pay earned on this day
   billId        Int?            @map("bill_id") // delivery bill it went on

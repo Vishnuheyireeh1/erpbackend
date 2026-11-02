@@ -23,9 +23,7 @@ export async function createSale(input: SaleInput, user: string) {
   if (customer && !customer.isActive) throw ApiError.badRequest(`Customer "${customer.name}" is inactive`)
 
   const items = await loadSaleItems(input.lines.map((l) => l.variantId))
-  const [profile, apparelRule, allowNegative] = await Promise.all([
-    getSetting('business.profile'), getSetting('billing.apparelGstRule'), getSetting('inventory.allowNegativeStock'),
-  ])
+  const [profile, apparelRule] = await Promise.all([getSetting('business.profile'), getSetting('billing.apparelGstRule')])
   const taxMode = taxModeFor(profile.stateCode, customer?.stateCode)
   const calc = calcSale({
     lines: input.lines.map((l) => ({ ...l, productGstRate: items.get(l.variantId)!.gstRate, hsnCode: items.get(l.variantId)!.hsnCode })),
@@ -56,7 +54,7 @@ export async function createSale(input: SaleInput, user: string) {
     const applied = await postMovements(
       tx,
       goods.map(({ l }) => ({ variantId: l.variantId, qty: -l.qty, type: 'SALE' as const })),
-      { refType: 'INV', refId: bill.id, refNo: docNo, date, user, allowNegative },
+      { refType: 'INV', refId: bill.id, refNo: docNo, date, user, allowNegative: true }, // a bill never stops for low stock
     )
     const unitCost = new Map(goods.map(({ i }, k) => [i, applied[k].unitCost]))
     await tx.salesLine.createMany({

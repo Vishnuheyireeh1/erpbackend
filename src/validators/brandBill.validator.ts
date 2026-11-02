@@ -15,6 +15,7 @@ export const brandDeliverSchema = z.object({
 
 export const brandPaymentSchema = z.object({
   brandId: z.coerce.number({ error: 'Choose the brand' }).int().positive('Choose the brand'),
+  orderId: z.coerce.number().int().positive().nullish().transform((v) => v ?? null), // received on this order
   docDate: date('Date').optional(),
   amount: z.coerce.number({ error: 'Enter the amount' }).positive('Enter the amount').max(9_999_999),
   mode: z.enum(paymentModes, { error: 'Choose how it was paid' }),

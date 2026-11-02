@@ -27,6 +27,9 @@ const piece = z.object({
   instructions: optional(1000),
   tailorId: z.coerce.number().int().positive().nullish().transform((v) => v ?? null),
   labourRate: money.default(0),
+  measuredById: z.coerce.number().int().positive().nullish().transform((v) => v ?? null), // staff who measured
+  // Cutting master (a worker): per-piece → rate is owed to them; salaried → only who did it. null = none.
+  cutting: z.object({ tailorId: z.coerce.number().int().positive(), rate: money.default(0) }).nullish().transform((v) => v ?? null),
   materials: materialLines.default([]), // new pieces only (later: add / remove on the order page)
 })
 
@@ -52,6 +55,16 @@ export const brandStageSchema = z.object({
 })
 export const brandTailorSchema = z.object({ tailorId: z.coerce.number().int().positive().nullish().transform((v) => v ?? null), labourRate: money.default(0) })
 // Work / cost on a brand order (embroidery, hand work …).
+// Order page → Assign workers.
+export const brandWorkersSchema = z.object({
+  items: z.array(z.object({
+    id: z.coerce.number().int().positive(),
+    tailorId: z.coerce.number().int().positive().nullish().transform((v) => v ?? null),
+    labourRate: money.default(0),
+    works: z.array(z.object({ categoryId: z.coerce.number().int().positive(), tailorId: z.coerce.number().int().positive(), rate: money.default(0) })).max(30),
+  })).min(1).max(200),
+})
+export type BrandWorkersInput = z.infer<typeof brandWorkersSchema>
 export const brandCostSchema = z.object({
   categoryId: z.coerce.number({ error: 'Choose the work' }).int().positive('Choose the work'),
   itemId: z.coerce.number().int().positive().nullish().transform((v) => v ?? null),

@@ -18,11 +18,10 @@ export async function addItems(jobId: number, input: JobAddItemsInput, user: str
   if (!head) throw ApiError.notFound('Job not found')
   const lines = await priceLines(input.lines, head.taxMode)
   const itemsDue = soldTotal(lines)
-  const allowNegative = await getSetting('inventory.allowNegativeStock')
   const { date } = toDocDate(undefined)
   await prisma.$transaction(async (tx) => {
     const job = await lockOpenJob(tx, jobId)
-    await postLinesTx(tx, job, lines, { user, date, allowNegative })
+    await postLinesTx(tx, job, lines, { user, date, allowNegative: true }) // a bill never stops for low stock
     await recalcJobTx(tx, jobId)
     const pay = await takePaymentTx(tx, jobId, { itemsDue, tenders: input.tenders, useAdvance: input.useAdvance, date, user, note: `Items on ${job.docNo}` })
     await audit(tx, {

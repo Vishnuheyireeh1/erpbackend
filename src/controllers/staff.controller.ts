@@ -2,13 +2,14 @@ import type { Request, Response } from 'express'
 import type { ZodType } from 'zod'
 import * as exporter from '../services/export/staff.export'
 import { monthSheet as payrollSheetOf } from '../services/staff/payroll.sheet'
+import { setLeave as setLeaveOf } from '../services/staff/payroll.leave'
 import * as payroll from '../services/staff/payroll.service'
 import { payslipPdf as payslipPdfOf } from '../services/staff/payslip.pdf'
 import * as salary from '../services/staff/salary.service'
 import * as staff from '../services/staff/staff.service'
 import { ApiError } from '../utils/ApiError'
 import { cancelDocSchema } from '../validators/purchase.validator'
-import { payrollSchema, salaryListSchema, staffListSchema, type PayslipInput, type SalaryPaymentInput, type StaffInput } from '../validators/staff.validator'
+import { payrollSchema, salaryListSchema, staffListSchema, type LeaveInput, type PayslipInput, type SalaryPaymentInput, type StaffInput } from '../validators/staff.validator'
 
 function parse<T>(schema: ZodType<T>, data: unknown): T {
   const r = schema.safeParse(data ?? {})
@@ -45,6 +46,10 @@ export const cancelSalary = async (req: Request, res: Response) => item(res, awa
 // ---- Monthly salary & payslips ----
 export const payrollSheet = async (req: Request, res: Response) => res.json({ success: true, ...(await payrollSheetOf(parse(payrollSchema, req.query).month)) })
 export const exportPayroll = (req: Request, res: Response) => exporter.exportPayroll(res, parse(payrollSchema, req.query).month, user(req))
+export const setLeave = async (req: Request, res: Response) => {
+  await setLeaveOf(req.body as LeaveInput, user(req))
+  res.json({ success: true })
+}
 export const payPayslip = async (req: Request, res: Response) => item(res, await payroll.pay(req.body as PayslipInput, user(req)), 201)
 export const getPayslip = async (req: Request, res: Response) => item(res, await payroll.getPayslip(readId(req)))
 export const cancelPayslip = async (req: Request, res: Response) => item(res, await payroll.cancelPayslip(readId(req), parse(cancelDocSchema, req.body).reason, user(req)))

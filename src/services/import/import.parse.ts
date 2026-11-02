@@ -28,8 +28,10 @@ function collect(rows: Iterable<{ rowNo: number; cells: string[] }>, spec: Sheet
   const out: RawRow[] = []
   for (const { rowNo, cells } of rows) {
     if (!columns) {
-      columns = cells.map(spec.headerKey) // first row = headers
-      if (!columns.includes(spec.requiredKey)) throw ApiError.badRequest(`First row must be the column headers (${spec.hint})`)
+      // The headers row = the first row naming the must-have column; a title / note above it (up to 10 rows) is skipped.
+      const keys = cells.map(spec.headerKey)
+      if (keys.includes(spec.requiredKey)) columns = keys
+      else if (rowNo > 10) throw ApiError.badRequest(`First row must be the column headers (${spec.hint})`)
       continue
     }
     if (cells.every((c) => c === '')) continue // skip blank rows
@@ -43,7 +45,7 @@ function collect(rows: Iterable<{ rowNo: number; cells: string[] }>, spec: Sheet
       throw ApiError.badRequest(`Too many rows — split the file (max ${MAX_IMPORT_ROWS.toLocaleString('en-IN')})`)
     }
   }
-  if (!columns) throw ApiError.badRequest('The file is empty')
+  if (!columns) throw ApiError.badRequest(`The file is empty, or has no column headers (${spec.hint})`)
   return out
 }
 

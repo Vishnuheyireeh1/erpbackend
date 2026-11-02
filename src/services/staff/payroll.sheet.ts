@@ -3,12 +3,15 @@ import { earnedRows } from '../workshop/tailor.statement'
 import { workersOf } from './staff.worker'
 
 // Monthly salary sheet: for each staff member in a month —
-//   salary part   = monthly salary − advance already paid for that month (salary payments without a payslip)
+//   salary part   = monthly salary − leave cut − advance already paid for that month (salary payments without a payslip)
+//   leave cut     = salary ÷ 30 × leave days of the month (same day rate every month; every leave day is cut)
 //   per-piece part = what their job work earned up to the month end − everything paid to them so far (worker payments)
 //                    (shown as: earned this month + older balance; older balance is minus when they took an advance)
 // Money itself is never stored here — paying makes a payslip (payroll.service.ts).
 
 const r2 = (n: number) => Math.round(n * 100) / 100
+// One month's leave cut: a day is 1/30 of the monthly salary.
+export const leaveCutOf = (salary: number, days: number) => r2((salary / 30) * days)
 export const monthDate = (m: string) => new Date(`${m}-01T00:00:00Z`)
 const lastDay = (m: string) => new Date(Date.UTC(Number(m.slice(0, 4)), Number(m.slice(5, 7)), 0)).toISOString().slice(0, 10)
 
@@ -26,10 +29,11 @@ export async function monthRows(month: string, staffIds?: number[]) {
     select: { id: true, code: true, name: true, role: true, dept: true, salary: true, isActive: true },
   })
   const ids = staff.map((s) => s.id)
-  const [workers, payslips, advances] = await Promise.all([
+  const [workers, payslips, advances, leaves] = await Promise.all([
     workersOf(ids),
     prisma.payslip.findMany({ where: { month: m, status: 'POSTED', staffId: { in: ids } }, select: { id: true, docNo: true, staffId: true, netPaid: true, docDate: true } }),
     prisma.salaryPayment.findMany({ where: { month: m, status: 'POSTED', staffId: { in: ids }, payslip: null }, select: { staffId: true, amount: true } }),
+    prisma.staffLeave.findMany({ where: { month: m, staffId: { in: ids } }, select: { staffId: true, days: true } }),
   ])
   const piece = [...workers.values()].filter((w) => w.payType === 'PIECE')
   const tailorIds = piece.map((w) => w.id)
@@ -58,10 +62,12 @@ export async function monthRows(month: string, staffIds?: number[]) {
       pieceDue = r2(Number(w.openingBalance) + upTo - Number(paid.find((p) => p.tailorId === w.id)?._sum.amount ?? 0))
     }
     pieceEarned = r2(pieceEarned)
-    const salaryDue = r2(Math.max(0, salary - advance))
+    const leaveDays = Number(leaves.find((l) => l.staffId === s.id)?.days ?? 0)
+    const leaveCut = leaveCutOf(salary, leaveDays)
+    const salaryDue = r2(Math.max(0, salary - leaveCut - advance))
     return {
       staff: s,
-      salary, advance, salaryDue,
+      salary, leaveDays, leaveCut, advance, salaryDue,
       isPiece, workerId: w?.id ?? null, pieceEarned, piecePieces, pieceBefore: r2(pieceDue - pieceEarned), pieceDue, work,
       toPay: r2(salaryDue + Math.max(0, pieceDue)),
       payslip: payslips.find((p) => p.staffId === s.id) ?? null,

@@ -36,13 +36,14 @@ export async function summary(_req: Request, res: Response) {
   res.json({ success: true, ...(await stockModel.summary()) })
 }
 
-// GET /stock/items/:id/ledger?page=
+// GET /stock/items/:id/ledger?page=&pageSize=
 export async function ledger(req: Request, res: Response) {
   const id = readId(req)
   const item = await stockModel.findVariant(id)
   if (!item) throw ApiError.notFound('Item not found')
   const page = Math.max(1, Number(req.query.page) || 1)
-  res.json({ success: true, item, ...(await stockModel.ledger(id, page, 30, req.query.order === 'oldest' ? 'asc' : 'desc')) })
+  const pageSize = Math.min(100, Math.max(1, Number(req.query.pageSize) || 30))
+  res.json({ success: true, item, ...(await stockModel.ledger(id, page, pageSize, req.query.order === 'oldest' ? 'asc' : 'desc')) })
 }
 
 // GET /stock/documents

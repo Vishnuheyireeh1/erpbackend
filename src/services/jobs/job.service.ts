@@ -33,7 +33,7 @@ export async function createJob(input: JobCreateInput, user: string) {
     if (parent.status === 'CANCELLED') throw ApiError.badRequest('The original job is cancelled')
   }
   const refs = await loadRefs(input.items)
-  const [profile, allowNegative] = await Promise.all([getSetting('business.profile'), getSetting('inventory.allowNegativeStock')])
+  const profile = await getSetting('business.profile')
   const gstRate = await gstRateFor(input.gstApplied)
   const taxMode = taxModeFor(profile.stateCode, customer.stateCode)
   const products = await priceLines(input.products, taxMode)
@@ -53,7 +53,7 @@ export async function createJob(input: JobCreateInput, user: string) {
     })
     // Usual costs of each garment (cutting master, hand work …) as cost entries.
     await autoEntriesTx(tx, job.id, await tx.jobItem.findMany({ where: { jobId: job.id }, select: { id: true, garmentTypeId: true, qty: true, description: true } }), date, user)
-    if (products.length) await postLinesTx(tx, job, products, { user, date, allowNegative })
+    if (products.length) await postLinesTx(tx, job, products, { user, date, allowNegative: true }) // a bill never stops for low stock
     const calc = await recalcJobTx(tx, job.id)
     // Advance now (old advance / credit first if asked); items sold must be paid in full.
     const pay = await takePaymentTx(tx, job.id, { itemsDue: soldTotal(products), tenders: input.tenders, useAdvance: input.useAdvance, date, user, note: `Advance for ${docNo}` })

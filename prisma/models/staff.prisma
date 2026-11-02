@@ -24,11 +24,27 @@ model Staff {
   payments  SalaryPayment[]
   batches   Batch[]
   payslips  Payslip[]
+  leaves    StaffLeave[]
   measured  JobItem[]       @relation("JobItemMeasuredBy") // garments they took measurements for
+  brandMeasured BrandOrderItem[] @relation("BrandItemMeasuredBy") // brand order pieces they measured
   worker    Tailor? // job-work profile (stitching, embroidery …) — balance, work done, pay
 
   @@index([name])
   @@map("staff")
+}
+
+/// Leave days taken in a month (one row per person per month; 0 days = no row). The cut = salary ÷ 30 × days — see payroll.sheet.ts.
+model StaffLeave {
+  staffId   Int      @map("staff_id")
+  staff     Staff    @relation(fields: [staffId], references: [id], onDelete: Cascade)
+  month     DateTime @db.Date // first day
+  days      Decimal  @db.Decimal(4, 1) // half days allowed
+  updatedBy String   @map("updated_by") @db.VarChar(50)
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@id([staffId, month])
+  @@index([month])
+  @@map("staff_leaves")
 }
 
 /// Salary (or part / advance of it) paid to a staff member — SAL/2026-27/0001. Shows in day book and profit & loss.

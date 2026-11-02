@@ -3,7 +3,7 @@ import { ApiError } from '../../utils/ApiError'
 import { nextDocNo, toDocDate } from '../../utils/financialYear'
 import type { BrandOrderCreateInput, BrandOrderUpdateInput } from '../../validators/brandOrder.validator'
 import { audit } from '../audit.service'
-import { getSetting } from '../settings.service'
+import { dropCutting, syncCutting } from './brandOrder.cutting'
 import { postMaterialsTx, priceMaterials, returnMaterialsTx } from './brandOrder.material'
 import { getOrder } from './brandOrder.query'
 import { loadPieceRefs, lockOpenOrder, pieceData } from './brandOrder.rules'
@@ -23,7 +23,7 @@ export async function createOrder(input: BrandOrderCreateInput, user: string) {
   if (!brand.isActive) throw ApiError.badRequest(`Brand "${brand.name}" is inactive`)
   const refs = await loadPieceRefs(input.items)
   const priced = await Promise.all(input.items.map((i) => priceMaterials(i.materials)))
-  const allowNegative = await getSetting('inventory.allowNegativeStock')
+  const allowNegative = true // an order never stops for low stock — stock just goes below zero
 
   const id = await prisma.$transaction(async (tx) => {
     const docNo = await nextDocNo(tx, 'BRO', date)
@@ -36,6 +36,7 @@ export async function createOrder(input: BrandOrderCreateInput, user: string) {
     for (const [k, i] of input.items.entries()) {
       const item = await tx.brandOrderItem.create({ data: { ...pieceData(i, k, refs), orderId: order.id } })
       await postMaterialsTx(tx, order, item.id, priced[k], { user, date, allowNegative })
+      await syncCutting(tx, order, item, i.cutting, refs, user)
     }
     const count = input.items.reduce((s, i) => s + i.qty, 0)
     await audit(tx, { actor: user, action: 'brandOrder.create', entity: 'brandOrder', entityId: order.id, summary: `${docNo} — ${brand.name}${input.theirOrderNo ? ` (order / bill no. ${input.theirOrderNo})` : ''}, ${pieces(count)}, due ${input.expectedDate}` })
@@ -61,7 +62,7 @@ export async function updateOrder(id: number, input: BrandOrderUpdateInput, user
   if (input.expectedDate < current.docDate.toISOString().slice(0, 10)) throw ApiError.badRequest('Due date is before the received date')
   const refs = await loadPieceRefs(input.items, new Set(byId.keys()))
   const priced = await Promise.all(input.items.map((i) => (i.id ? Promise.resolve([]) : priceMaterials(i.materials))))
-  const allowNegative = await getSetting('inventory.allowNegativeStock')
+  const allowNegative = true // an order never stops for low stock — stock just goes below zero
   const { date } = toDocDate(undefined)
 
   await prisma.$transaction(async (tx) => {
@@ -69,14 +70,18 @@ export async function updateOrder(id: number, input: BrandOrderUpdateInput, user
     await tx.brandOrder.update({ where: { id }, data: { theirOrderNo: input.theirOrderNo, expectedDate: new Date(`${input.expectedDate}T00:00:00Z`), labelNote: input.labelNote, notes: input.notes } })
     if (removed.length) {
       await returnMaterialsTx(tx, order, removed.flatMap((i) => i.materials.map((m) => m.id)), { user, note: `Piece removed from ${order.docNo}` })
+      await dropCutting(tx, removed.map((i) => i.id))
       await tx.brandOrderItem.deleteMany({ where: { id: { in: removed.map((i) => i.id) } } })
     }
     for (const [k, i] of input.items.entries()) {
       const data = pieceData(i, delivered.length + k, refs)
-      if (i.id) await tx.brandOrderItem.update({ where: { id: i.id }, data })
-      else {
+      if (i.id) {
+        const item = await tx.brandOrderItem.update({ where: { id: i.id }, data })
+        await syncCutting(tx, order, item, i.cutting, refs, user)
+      } else {
         const item = await tx.brandOrderItem.create({ data: { ...data, orderId: id } })
         await postMaterialsTx(tx, order, item.id, priced[k], { user, date, allowNegative })
+        await syncCutting(tx, order, item, i.cutting, refs, user)
       }
     }
     const added = input.items.filter((i) => !i.id).length

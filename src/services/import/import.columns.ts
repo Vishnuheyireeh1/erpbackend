@@ -28,7 +28,7 @@ export const importColumns: ColumnDef[] = [
   { key: 'notes', header: 'Notes', width: 30, note: 'Optional' },
 ]
 
-// Header text → column key (case / spacing / "*" ignored, a few common aliases).
+// Header text → column key (case / spacing / "*" / "(optional)" ignored, a few common aliases).
 const aliases: Record<string, ColumnKey> = {
   productname: 'name', name: 'name', item: 'name', itemname: 'name',
   type: 'type', producttype: 'type',
@@ -45,7 +45,7 @@ const aliases: Record<string, ColumnKey> = {
 }
 
 export function headerKey(header: string): ColumnKey | undefined {
-  return aliases[header.toLowerCase().replace(/[^a-z]/g, '')]
+  return aliases[header.toLowerCase().replace(/\(optional\)/g, '').replace(/[^a-z]/g, '')]
 }
 
 export const typeLabels: Record<string, 'RAW_MATERIAL' | 'READY_MADE' | 'FINISHED' | 'ACCESSORY' | 'SERVICE'> = {

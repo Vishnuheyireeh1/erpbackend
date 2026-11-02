@@ -57,6 +57,8 @@ export async function exportPayroll(res: Response, month: string, user: string) 
     { header: 'Name', value: (r) => r.staff.name, width: 24 },
     { header: 'Work', value: (r) => r.staff.role, width: 16 },
     { header: 'Monthly salary', value: (r) => r.salary, type: 'money' },
+    { header: 'Leave days', value: (r) => r.leaveDays || null, width: 8 },
+    { header: 'Leave cut', value: (r) => r.leaveCut || null, type: 'money' },
     { header: 'Advance paid', value: (r) => r.advance, type: 'money' },
     { header: 'Per-piece pieces', value: (r) => (r.isPiece ? r.piecePieces : null), width: 10 },
     { header: 'Per-piece earned', value: (r) => (r.isPiece ? r.pieceEarned : null), type: 'money' },

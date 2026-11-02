@@ -64,6 +64,13 @@ export const payslipSchema = z.object({
   notes: optional(255),
 })
 
+// Monthly salary list → Leave days box. Whole or half days.
+export const leaveSchema = z.object({
+  staffId: z.coerce.number({ error: 'Choose the staff member' }).int().positive('Choose the staff member'),
+  month: z.string({ error: 'Choose the month' }).regex(/^\d{4}-\d{2}$/, 'Choose the month'),
+  days: z.coerce.number({ error: 'Enter the leave days' }).min(0, 'Leave days can\'t be below 0').max(31, 'A month has at most 31 days').refine((n) => Number.isInteger(n * 2), 'Whole or half days only (1, 1.5, 2 …)'),
+})
+
 export const payrollSchema = z.object({ month: z.string().regex(/^\d{4}-\d{2}$/, 'Choose the month') })
 
 export const salaryListSchema = z.object({
@@ -83,4 +90,5 @@ export type StaffWorkInput = z.infer<typeof staffWorkSchema>
 export type StaffListQuery = z.infer<typeof staffListSchema>
 export type SalaryPaymentInput = z.infer<typeof salaryPaymentSchema>
 export type PayslipInput = z.infer<typeof payslipSchema>
+export type LeaveInput = z.infer<typeof leaveSchema>
 export type SalaryListQuery = z.infer<typeof salaryListSchema>

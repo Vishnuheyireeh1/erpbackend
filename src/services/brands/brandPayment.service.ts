@@ -15,9 +15,14 @@ export async function createPayment(input: BrandPaymentInput, user: string) {
   if (isFuture) throw ApiError.badRequest("Date can't be in the future")
   const brand = await prisma.partnerBrand.findUnique({ where: { id: input.brandId } })
   if (!brand) throw ApiError.badRequest('Selected brand no longer exists')
+  if (input.orderId) {
+    const order = await prisma.brandOrder.findFirst({ where: { id: input.orderId, brandId: brand.id }, select: { docNo: true, status: true } })
+    if (!order) throw ApiError.badRequest('That order is not from this brand')
+    if (order.status === 'CANCELLED') throw ApiError.conflict(`${order.docNo} is cancelled`)
+  }
   const payment = await prisma.$transaction(async (tx) => {
     const docNo = await nextDocNo(tx, 'BRP', date)
-    const p = await tx.brandPayment.create({ data: { docNo, brandId: brand.id, docDate: date, amount: input.amount, mode: input.mode, reference: input.reference, notes: input.notes, createdBy: user } })
+    const p = await tx.brandPayment.create({ data: { docNo, brandId: brand.id, orderId: input.orderId, docDate: date, amount: input.amount, mode: input.mode, reference: input.reference, notes: input.notes, createdBy: user } })
     await audit(tx, { actor: user, action: 'brandPayment.create', entity: 'brandPayment', entityId: p.id, summary: `${docNo} — ₹${input.amount} from ${brand.name} (${input.mode}${input.reference ? ` ${input.reference}` : ''})` })
     return p
   })

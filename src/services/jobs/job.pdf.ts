@@ -40,7 +40,7 @@ function header(doc: Doc, job: Job, p: Awaited<ReturnType<typeof getSetting<'bus
   text(doc, `Booked: ${fmtDate(job.docDate)}  ${job.createdAt.toLocaleTimeString('en-IN', { timeZone: 'Asia/Kolkata', hour: '2-digit', minute: '2-digit' })}`, 330, y, { width: R - 330, align: 'right' })
   y += 14
   text(doc, `Customer: ${job.customerName}${job.customerPhone ? `  ·  ${job.customerPhone}` : ''}`, L, y)
-  text(doc, `Ready by: ${fmtDate(job.expectedDate)}`, 330, y, { width: R - 330, align: 'right', bold: true })
+  text(doc, `Expected delivery: ${fmtDate(job.expectedDate)}`, 330, y, { width: R - 330, align: 'right', bold: true })
   return y + 18
 }
 

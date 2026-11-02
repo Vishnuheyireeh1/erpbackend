@@ -40,6 +40,16 @@ export function orderSums(o: Summed) {
   return { pieces: count(), inWork: count('IN_WORK'), ready: count('READY'), delivered: count('DELIVERED'), value }
 }
 
+// What this order comes to and what is left: delivered pieces at their bills (GST and round off included), the rest at their price.
+type Moneyed = { status: string; items: { id: number; qty: number; chargeRate: Prisma.Decimal; stage: string }[]; materials: { itemId: number; amount: Prisma.Decimal }[]; bills: { status: string; grandTotal: Prisma.Decimal }[]; payments: { amount: Prisma.Decimal }[] }
+function orderMoney(o: Moneyed) {
+  const billed = o.bills.filter((b) => b.status === 'POSTED').reduce((s, b) => s + Number(b.grandTotal), 0)
+  const notBilled = o.items.filter((i) => i.stage !== 'DELIVERED').reduce((s, i) => s + i.qty * Number(i.chargeRate) + o.materials.filter((m) => m.itemId === i.id).reduce((t, m) => t + Number(m.amount), 0), 0)
+  const total = o.status === 'CANCELLED' ? 0 : r2(billed + notBilled)
+  const received = r2(o.payments.reduce((s, p) => s + Number(p.amount), 0))
+  return { total, received, balance: r2(Math.max(0, total - received)) }
+}
+
 export async function listOrders(q: BrandOrderListQuery) {
   const where = orderWhere(q)
   const [rows, total] = await Promise.all([
@@ -60,15 +70,16 @@ export async function getOrder(id: number) {
       brand: { select: { id: true, code: true, name: true, phone: true, gstin: true, gstRate: true } },
       items: {
         orderBy: [{ sortOrder: 'asc' }, { id: 'asc' }],
-        include: { garmentType: { select: { id: true, name: true, fields: true } }, tailor: { select: { id: true, name: true, payType: true } } },
+        include: { garmentType: { select: { id: true, name: true, fields: true } }, tailor: { select: { id: true, name: true, payType: true } }, measuredBy: { select: { id: true, name: true } } },
       },
       materials: { orderBy: { id: 'asc' }, include: { variant: { select: { sku: true, product: { select: { unit: { select: { code: true } } } } } } } },
       bills: { orderBy: { id: 'asc' }, select: { id: true, docNo: true, docDate: true, grandTotal: true, gstRate: true, status: true, _count: { select: { items: true } } } },
       clothEntries: { orderBy: [{ date: 'asc' }, { id: 'asc' }] },
+      payments: { where: { status: 'POSTED' }, orderBy: [{ docDate: 'asc' }, { id: 'asc' }], select: { id: true, docNo: true, docDate: true, amount: true, mode: true, reference: true } },
       costs: { orderBy: [{ date: 'asc' }, { id: 'asc' }], include: { category: { select: { id: true, name: true } }, tailor: { select: { id: true, name: true } }, item: { select: { id: true, description: true, endCustomer: true } } } },
     },
   })
   if (!order) throw ApiError.notFound('Brand order not found')
   const profit = (await profitOf([id])).get(id)
-  return { ...order, ...orderSums(order), cloth: clothBalance(order.clothEntries), profit }
+  return { ...order, ...orderSums(order), ...orderMoney(order), cloth: clothBalance(order.clothEntries), profit }
 }

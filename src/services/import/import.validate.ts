@@ -10,12 +10,13 @@ export type ImportPlan = {
   toCreate: { sizes: string[]; colours: string[] }
   errors: RowError[]
   errorCount: number
+  badRows: Set<number> // every row with a problem (errors above may be cut to the first ${MAX_ERRORS_RETURNED})
 }
 
 const MAX_ERRORS_RETURNED = 500
 
 // Unique new master names (first spelling wins).
-function newNames(rows: ParsedRow[], pick: (r: ParsedRow) => ParsedRow['size']) {
+export function newNames(rows: ParsedRow[], pick: (r: ParsedRow) => ParsedRow['size']) {
   const names = new Map<string, string>()
   for (const r of rows) {
     const ref = pick(r)
@@ -93,5 +94,6 @@ export async function buildPlan(rawRows: RawRow[], createMissing: boolean): Prom
     },
     errors: errors.slice(0, MAX_ERRORS_RETURNED),
     errorCount: errors.length,
+    badRows: new Set(errors.map((e) => e.row)),
   }
 }
