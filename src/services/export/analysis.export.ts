@@ -88,8 +88,9 @@ export async function exportItemProfit(res: Response, q: Range & { kind?: ItemKi
   const columns: ExcelColumn<Row>[] = [
     { header: 'Item', value: (x) => x.item, width: 28 }, { header: 'Type', value: (x) => (x.kind ? KIND_LABEL[x.kind] : ''), width: 14 },
     { header: 'Pieces / qty', value: (x) => x.pieces, type: 'qty' }, money('Avg rate', (x) => x.avgRate), money('Total (before GST)', (x) => x.total),
-    money('Tailor pay', (x) => x.tailor), money('Embroidery', (x) => x.embroidery), money('Other costs', (x) => x.other),
-    money('Cloth / item cost', (x) => x.cloth), money('Profit', (x) => x.profit), { header: 'Margin %', value: (x) => x.marginPct, type: 'number', width: 10 },
+    // A sale item has no tailor or work costs — only the other views list them.
+    ...(r.kind === 'SALE' ? [] : [money<Row>('Tailor pay', (x) => x.tailor), money<Row>('Embroidery', (x) => x.embroidery), money<Row>('Other costs', (x) => x.other)]),
+    money(r.kind === 'SALE' ? 'Item cost' : 'Cloth / item cost', (x) => x.cloth), money('Profit', (x) => x.profit), { header: 'Margin %', value: (x) => x.marginPct, type: 'number', width: 10 },
   ]
   const filters = [`${r.from} to ${r.to}`, r.kind ? `${KIND_LABEL[r.kind]}s` : 'Sale items, stitching jobs and brand orders']
   return sendExcel(res, { fileName: 'profit-by-item', title: 'Profit by item', filters, columns, rows: [rows], user })
