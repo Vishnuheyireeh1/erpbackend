@@ -26,6 +26,7 @@ const user = (req: Request) => req.admin!.username
 
 // ---- Tailors ----
 export const listTailors = async (req: Request, res: Response) => res.json({ success: true, ...(await tailorService.list(parse(tailorListSchema, req.query))) })
+export const tailorFromStaff = async (req: Request, res: Response) => res.json({ success: true, item: await tailorService.fromStaff(readId(req), user(req)) })
 export const tailorOptions = async (_req: Request, res: Response) => res.json({ success: true, items: await tailorService.options() })
 export const getTailor = async (req: Request, res: Response) => res.json({ success: true, item: await tailorService.getById(readId(req)) })
 export const exportTailors = (req: Request, res: Response) => exporter.exportTailors(res, parse(tailorListSchema, req.query), user(req))
@@ -53,7 +54,10 @@ export async function removeCostCategory(req: Request, res: Response) {
 export const listGarments = async (req: Request, res: Response) => res.json({ success: true, items: await garmentService.list(req.query.active !== '1') })
 export const createGarment = async (req: Request, res: Response) => res.status(201).json({ success: true, item: await garmentService.create(req.body as GarmentInput, user(req)) })
 export const updateGarment = async (req: Request, res: Response) => res.json({ success: true, item: await garmentService.update(readId(req), req.body as GarmentInput, user(req)) })
-export const addGarmentCharge = async (req: Request, res: Response) => res.json({ success: true, charges: await garmentService.addCharge(readId(req), (req.body as { name: string }).name, user(req)) })
+export const addGarmentCharge = async (req: Request, res: Response) => {
+  const { name, rate } = req.body as { name: string; rate: number }
+  res.json({ success: true, charges: await garmentService.addCharge(readId(req), name, rate, user(req)) })
+}
 export async function removeGarment(req: Request, res: Response) {
   await garmentService.remove(readId(req), user(req))
   res.json({ success: true })

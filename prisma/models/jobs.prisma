@@ -131,7 +131,9 @@ model JobCost {
   job         StitchingJob @relation(fields: [jobId], references: [id], onDelete: Cascade)
   kind        String       @db.VarChar(40) // Embroidery / Lining / Other …
   description String?      @db.VarChar(200)
-  charge      Decimal      @default(0) @db.Decimal(12, 2) // billed to the customer (GST included)
+  qty         Decimal      @default(1) @db.Decimal(10, 2)
+  rate        Decimal?     @db.Decimal(12, 2) // per unit; empty on old bills (the charge was one amount)
+  charge      Decimal      @default(0) @db.Decimal(12, 2) // billed to the customer (GST included): qty × rate
 
   @@index([jobId])
   @@map("job_costs")
@@ -151,6 +153,7 @@ model JobCostCategory {
   defaultPaidBy CostPaidBy           @default(PAID) @map("default_paid_by")
   sortOrder     Int                  @default(0) @map("sort_order")
   isActive      Boolean              @default(true) @map("is_active")
+  showInCosts   Boolean              @default(false) @map("show_in_costs") // listed in the Add cost dropdown
   entries       JobCostEntry[]
   brandCosts    BrandOrderCost[]
   defaults      GarmentCostDefault[]

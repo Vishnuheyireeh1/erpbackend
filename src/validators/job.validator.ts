@@ -30,8 +30,10 @@ const item = z.object({
 const cost = z.object({
   kind: z.string({ error: 'Choose the charge type' }).trim().min(1, 'Choose the charge type').max(40),
   description: optional(200),
+  qty: z.coerce.number().positive('Enter the quantity').max(99_999).default(1),
+  rate: money.nullish().transform((v) => v ?? null),
   charge: money.refine((n) => n > 0, 'Enter the charge'),
-})
+}).transform((c) => (c.rate === null ? c : { ...c, charge: Math.round(c.qty * c.rate * 100) / 100 })) // the amount is always qty × rate
 
 // Shop item on a job: sold (printed, GST-inclusive rate, paid in full when added) or included in the stitching.
 const productLine = z.object({

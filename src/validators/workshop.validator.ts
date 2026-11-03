@@ -30,11 +30,11 @@ export const garmentSchema = z.object({
   defaultLabour: money.default(0),
   // Usual job costs per piece (e.g. Cutting master ₹140) — added automatically when a job is booked.
   costDefaults: z.array(z.object({ categoryId: z.coerce.number().int().positive(), rate: money })).max(30).default([]),
-  // Additional charge options (Lining, Piping …) — shown inside the garment on the bill; the amount is typed there.
+  // Additional charge options (Lining ₹100, Piping ₹50 …) — shown inside the garment on the bill, where qty and rate can change.
   charges: z
-    .array(z.string().trim().min(1, 'A charge name is empty').max(40, 'Charge names can be at most 40 letters'))
+    .array(z.object({ name: z.string().trim().min(1, 'A charge name is empty').max(40, 'Charge names can be at most 40 letters'), rate: money.default(0) }))
     .max(20, 'At most 20 charges per garment')
-    .refine((c) => new Set(c.map((x) => x.toLowerCase())).size === c.length, 'The same charge is listed twice')
+    .refine((c) => new Set(c.map((x) => x.name.toLowerCase())).size === c.length, 'The same charge is listed twice')
     .default([]),
   sortOrder: z.coerce.number().int().min(0).max(9999).default(0),
   isActive: z.boolean().default(true),
@@ -57,13 +57,14 @@ export const costCategorySchema = z.object({
   defaultPaidBy: z.enum(['SALARIED', 'PAID']).default('PAID'),
   sortOrder: z.coerce.number().int().min(0).max(9999).default(0),
   isActive: z.boolean().default(true),
+  showInCosts: z.boolean().optional(), // listed in the Add cost dropdown (left as it is when not sent)
 })
 export type CostCategoryInput = z.infer<typeof costCategorySchema>
 
 export type TailorListQuery = z.infer<typeof tailorListSchema>
 export type GarmentInput = z.infer<typeof garmentSchema>
 
-export const garmentChargeSchema = z.object({ name: z.string({ error: 'Enter the charge name' }).trim().min(1, 'Enter the charge name').max(40, 'Charge names can be at most 40 letters') })
+export const garmentChargeSchema = z.object({ name: z.string({ error: 'Enter the charge name' }).trim().min(1, 'Enter the charge name').max(40, 'Charge names can be at most 40 letters'), rate: money.default(0) })
 export type MeasurementInput = z.infer<typeof measurementSchema>
 
 export const tailorPaymentSchema = z.object({

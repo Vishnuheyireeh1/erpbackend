@@ -1,6 +1,8 @@
 import type { Prisma } from '../../generated/prisma/client'
 import { prisma } from '../../config/prisma'
+import { nextValue } from '../../models/counter.model'
 import { ApiError } from '../../utils/ApiError'
+import { audit } from '../audit.service'
 import type { TailorListQuery } from '../../validators/workshop.validator'
 import { balances, earnedRows } from './tailor.statement'
 
@@ -61,6 +63,20 @@ export async function getById(id: number) {
 }
 
 // For dropdowns on jobs: active workers, the work they do and their own rates.
+// A staff member with no worker profile was picked for stitching: make it (on salary if they have one, else per piece).
+export async function fromStaff(staffId: number, user: string) {
+  const staff = await prisma.staff.findUnique({ where: { id: staffId } })
+  if (!staff || !staff.isActive) throw ApiError.badRequest('Choose the staff member again')
+  return prisma.$transaction(async (tx) => {
+    const old = await tx.tailor.findUnique({ where: { staffId } })
+    if (old) return old.isActive ? old : tx.tailor.update({ where: { id: old.id }, data: { isActive: true } })
+    const code = `T${String(await nextValue(tx, 'tailor')).padStart(3, '0')}`
+    const worker = await tx.tailor.create({ data: { code, staffId, name: staff.name, phone: staff.phone, speciality: staff.role, payType: Number(staff.salary) > 0 ? 'SALARY' : 'PIECE', stitches: true } })
+    await audit(tx, { actor: user, action: 'tailor.fromStaff', entity: 'tailor', entityId: worker.id, summary: `${staff.name} given job work (${code}) — picked in Assign workers` })
+    return worker
+  })
+}
+
 export function options() {
   return prisma.tailor.findMany({
     where: { isActive: true },

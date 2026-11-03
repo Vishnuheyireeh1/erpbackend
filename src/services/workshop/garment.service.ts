@@ -47,13 +47,13 @@ async function setCostDefaultsTx(tx: Prisma.TransactionClient, garmentTypeId: nu
 }
 
 // A charge typed on a bill that the garment doesn't list yet → added to its options (shown next time).
-export async function addCharge(id: number, name: string, user: string) {
+export async function addCharge(id: number, name: string, rate: number, user: string) {
   const g = await prisma.garmentType.findUnique({ where: { id } })
   if (!g) throw ApiError.notFound('Garment type not found')
-  const list = (g.charges as string[]) ?? []
-  if (list.some((c) => c.toLowerCase() === name.toLowerCase())) return list
+  const list = (g.charges as { name: string; rate: number }[]) ?? []
+  if (list.some((c) => c.name.toLowerCase() === name.toLowerCase())) return list // a known charge keeps its usual rate
   if (list.length >= 20) return list // the garment form allows at most 20
-  const charges = [...list, name]
+  const charges = [...list, { name, rate }]
   await prisma.$transaction(async (tx) => {
     await tx.garmentType.update({ where: { id }, data: { charges } })
     await audit(tx, { actor: user, action: 'garment.charge', entity: 'garment_type', entityId: id, summary: `${g.name}: charge "${name}" added from a bill` })

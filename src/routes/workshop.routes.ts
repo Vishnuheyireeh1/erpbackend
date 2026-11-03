@@ -7,6 +7,7 @@ import { costCategorySchema, garmentChargeSchema, garmentSchema, measurementSche
 export const tailorRoutes = Router()
 tailorRoutes.get('/export', workshop.exportTailors)
 tailorRoutes.get('/options', workshop.tailorOptions)
+tailorRoutes.post('/from-staff/:id', workshop.tailorFromStaff)
 tailorRoutes.get('/', workshop.listTailors)
 tailorRoutes.get('/:id', workshop.getTailor)
 tailorRoutes.get('/:id/statement', workshop.tailorStatement)
