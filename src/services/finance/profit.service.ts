@@ -66,8 +66,11 @@ export async function profitAndLoss(q: { from?: string; to?: string }) {
   const income = r2(goodsSold + stitching + brands + training + otherIncome)
   const costOfGoods = r2(num(sales._sum.costTotal) + num(jobItems[0]?.cost) - num(returnCost[0]?.v) + num(brandCloth[0]?.sold))
 
+  // Extra pay to salaried people (cutting master on a brand order) — a cost when paid, same as the books.
+  const salariedPay = await prisma.tailorPayment.aggregate({ where: { status: 'POSTED', docDate: range, tailor: { payType: 'SALARY' } }, _sum: { amount: true } })
   const direct = [
     { name: 'Worker pay (per piece)', amount: r2(earned.filter((e) => piece.has(e.tailor_id)).reduce((s, e) => s + Number(e.labour), 0)) },
+    { name: 'Salaried worker pay', amount: r2(num(salariedPay._sum.amount)) },
     { name: 'Shop material used for stitching', amount: r2(num(used[0]?.v) + num(brandCloth[0]?.used)) },
     { name: 'Job costs paid out', amount: r2(num(entries[0]?.v)) },
     { name: 'Stock adjustments (damage / count)', amount: r2(num(adjust[0]?.v)) },

@@ -50,7 +50,7 @@ model BrandBillLine {
   id          Int       @id @default(autoincrement())
   billId      Int       @map("bill_id")
   bill        BrandBill @relation(fields: [billId], references: [id], onDelete: Cascade)
-  kind        String    @db.VarChar(10) // PIECE | ITEM
+  kind        String    @db.VarChar(10) // PIECE | ITEM | CHARGE
   description String    @db.VarChar(200)
   endCustomer String?   @map("end_customer") @db.VarChar(120)
   qty         Decimal   @db.Decimal(14, 3)

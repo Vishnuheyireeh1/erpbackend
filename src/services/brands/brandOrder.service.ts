@@ -3,7 +3,7 @@ import { ApiError } from '../../utils/ApiError'
 import { nextDocNo, toDocDate } from '../../utils/financialYear'
 import type { BrandOrderCreateInput, BrandOrderUpdateInput } from '../../validators/brandOrder.validator'
 import { audit } from '../audit.service'
-import { dropCutting, syncCutting } from './brandOrder.cutting'
+import { dropCutting, syncCharges, syncCutting } from './brandOrder.cutting'
 import { postMaterialsTx, priceMaterials, returnMaterialsTx } from './brandOrder.material'
 import { getOrder } from './brandOrder.query'
 import { loadPieceRefs, lockOpenOrder, pieceData } from './brandOrder.rules'
@@ -37,6 +37,7 @@ export async function createOrder(input: BrandOrderCreateInput, user: string) {
       const item = await tx.brandOrderItem.create({ data: { ...pieceData(i, k, refs), orderId: order.id } })
       await postMaterialsTx(tx, order, item.id, priced[k], { user, date, allowNegative })
       await syncCutting(tx, order, item, i.cutting, refs, user)
+      await syncCharges(tx, item.id, i.charges)
     }
     const count = input.items.reduce((s, i) => s + i.qty, 0)
     await audit(tx, { actor: user, action: 'brandOrder.create', entity: 'brandOrder', entityId: order.id, summary: `${docNo} — ${brand.name}${input.theirOrderNo ? ` (order / bill no. ${input.theirOrderNo})` : ''}, ${pieces(count)}, due ${input.expectedDate}` })
@@ -78,10 +79,12 @@ export async function updateOrder(id: number, input: BrandOrderUpdateInput, user
       if (i.id) {
         const item = await tx.brandOrderItem.update({ where: { id: i.id }, data })
         await syncCutting(tx, order, item, i.cutting, refs, user)
+        await syncCharges(tx, item.id, i.charges)
       } else {
         const item = await tx.brandOrderItem.create({ data: { ...data, orderId: id } })
         await postMaterialsTx(tx, order, item.id, priced[k], { user, date, allowNegative })
         await syncCutting(tx, order, item, i.cutting, refs, user)
+        await syncCharges(tx, item.id, i.charges)
       }
     }
     const added = input.items.filter((i) => !i.id).length

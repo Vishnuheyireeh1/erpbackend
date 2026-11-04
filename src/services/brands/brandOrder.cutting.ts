@@ -8,7 +8,8 @@ type Piece = { id: number; qty: number }
 // Cutting master of a piece, picked on the brand order form (under the tailor). Kept as the piece's "Cutting" work line
 // (brand_order_costs), so it shows in the order's Work & costs, its profit and the worker's balance like any other work:
 //   per-piece worker → WORKER line: pieces × their pay (owed to them)
-//   salaried          → SALARIED line at ₹0 (only who did it — their salary is the shop's cost)
+//   salaried          → SALARIED line at ₹0 (only who did it), or with a pay typed: WORKER line, extra pay on top of salary
+//                       (paid through Monthly salary, see extraPayRows)
 // The form edits ONE cutting line per piece (the first one with a worker); more can still be added on the order page.
 
 const r2 = (n: number) => Math.round(n * 100) / 100
@@ -25,10 +26,9 @@ export async function syncCutting(tx: Tx, order: { id: number; docDate: Date }, 
     if (line) await tx.brandOrderCost.delete({ where: { id: line.id } })
     return
   }
-  const perPiece = refs.worker(cutting.tailorId).payType === 'PIECE'
-  const rate = perPiece ? cutting.rate : 0
+  const owed = refs.worker(cutting.tailorId).payType === 'PIECE' || cutting.rate > 0
   const data = {
-    qty: piece.qty, rate, amount: r2(piece.qty * rate), paidBy: perPiece ? ('WORKER' as const) : ('SALARIED' as const), tailorId: cutting.tailorId,
+    qty: piece.qty, rate: cutting.rate, amount: r2(piece.qty * cutting.rate), paidBy: owed ? ('WORKER' as const) : ('SALARIED' as const), tailorId: cutting.tailorId,
   }
   if (line) await tx.brandOrderCost.update({ where: { id: line.id }, data })
   else await tx.brandOrderCost.create({ data: { ...data, orderId: order.id, itemId: piece.id, categoryId: work.id, date: order.docDate, description: 'Cutting master', createdBy: user } })
@@ -39,4 +39,10 @@ export async function dropCutting(tx: Tx, itemIds: number[]) {
   if (!itemIds.length) return
   const work = await cuttingWork(tx)
   await tx.brandOrderCost.deleteMany({ where: { itemId: { in: itemIds }, categoryId: work.id, tailorId: { not: null } } })
+}
+
+// Additional charges of a piece: replaced as a whole on every save (delivered pieces never reach here).
+export async function syncCharges(tx: Tx, itemId: number, charges: BrandPieceInput['charges']) {
+  await tx.brandOrderCharge.deleteMany({ where: { itemId } })
+  if (charges.length) await tx.brandOrderCharge.createMany({ data: charges.map((c, k) => ({ itemId, name: c.name, qty: c.qty, rate: c.rate, amount: r2(c.qty * c.rate), sortOrder: k })) })
 }

@@ -32,7 +32,7 @@ export async function pay(input: PayslipInput, user: string) {
   if (input.piecePaid > 0 && !row.isPiece) throw ApiError.badRequest(`${s.name} is not paid per piece`)
   if (input.piecePaid > Math.max(0, row.pieceDue) + 0.004) throw ApiError.badRequest(`Per-piece pay due is only ₹${Math.max(0, row.pieceDue)}`)
   const net = r2(salaryPart + input.piecePaid)
-  if (net <= 0 && row.salary <= 0) throw ApiError.badRequest('Nothing to pay')
+  if (net <= 0 && row.salary <= 0) throw ApiError.badRequest(row.dayRate > 0 ? 'Type the days worked first — nothing to pay yet' : 'Nothing to pay')
 
   const id = await prisma.$transaction(async (tx) => {
     const docNo = await nextDocNo(tx, 'PS', date)
@@ -46,7 +46,7 @@ export async function pay(input: PayslipInput, user: string) {
     const p = await tx.payslip.create({
       data: {
         docNo, staffId: s.id, month: monthDate(input.month), docDate: date,
-        salary: row.salary, advance: row.advance, bonus: input.bonus, deduction: input.deduction, deductionNote: input.deductionNote,
+        salary: row.salary, dayRate: row.dayRate, days: row.workedDays, advance: row.advance, bonus: input.bonus, deduction: input.deduction, deductionNote: input.deductionNote,
         pieceEarned: row.pieceEarned, piecePieces: row.piecePieces, pieceBefore: row.pieceBefore, piecePaid: input.piecePaid, netPaid: net,
         mode: input.mode, reference: input.reference, notes: input.notes, work: row.work, salaryPaymentId: sp?.id, tailorPaymentId: tp?.id, createdBy: user,
       },

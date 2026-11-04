@@ -30,6 +30,8 @@ const piece = z.object({
   measuredById: z.coerce.number().int().positive().nullish().transform((v) => v ?? null), // staff who measured
   // Cutting master (a worker): per-piece → rate is owed to them; salaried → only who did it. null = none.
   cutting: z.object({ tailorId: z.coerce.number().int().positive(), rate: money.default(0) }).nullish().transform((v) => v ?? null),
+  // Additional charges (Sarifal, Interlock …), billed with the piece.
+  charges: z.array(z.object({ name: z.string().trim().min(1, 'Name the charge').max(120), qty: z.coerce.number().positive('Enter the quantity').max(9_999), rate: money })).max(30, 'Too many charges for one piece').default([]),
   materials: materialLines.default([]), // new pieces only (later: add / remove on the order page)
 })
 

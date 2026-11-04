@@ -1,7 +1,7 @@
 import { Router } from 'express'
 import * as s from '../controllers/staff.controller'
 import { validateBody } from '../middlewares/validate.middleware'
-import { leaveSchema, payslipSchema, salaryPaymentSchema, staffSchema } from '../validators/staff.validator'
+import { leaveSchema, payslipSchema, salaryPaymentSchema, staffSchema, workDaysSchema } from '../validators/staff.validator'
 
 // /api/staff, /api/salary-payments
 export const staffRoutes = Router()
@@ -25,6 +25,7 @@ export const payrollRoutes = Router()
 payrollRoutes.get('/export', s.exportPayroll)
 payrollRoutes.get('/', s.payrollSheet)
 payrollRoutes.put('/leave', validateBody(leaveSchema), s.setLeave)
+payrollRoutes.put('/days', validateBody(workDaysSchema), s.setWorkDays)
 payrollRoutes.post('/payslips', validateBody(payslipSchema), s.payPayslip)
 payrollRoutes.get('/payslips/:id', s.getPayslip)
 payrollRoutes.get('/payslips/:id/pdf', s.payslipPdf)

@@ -25,6 +25,7 @@ export const staffSchema = z.object({
   role: z.string({ error: 'Enter the work they do' }).trim().min(1, 'Enter the work they do').max(60),
   dept: z.enum(['WORKSHOP', 'SHOP']).default('SHOP'),
   salary: z.coerce.number().min(0, "Salary can't be negative").max(9_999_999).default(0),
+  dayRate: z.coerce.number().min(0, "Amount per day can't be negative").max(999_999).default(0), // paid per day (salary is 0 then)
   joinDate: date('Joining date').nullish().transform((v) => (v ? new Date(`${v}T00:00:00Z`) : null)),
   notes: optional(500),
   isActive: z.boolean().default(true),
@@ -71,6 +72,13 @@ export const leaveSchema = z.object({
   days: z.coerce.number({ error: 'Enter the leave days' }).min(0, 'Leave days can\'t be below 0').max(31, 'A month has at most 31 days').refine((n) => Number.isInteger(n * 2), 'Whole or half days only (1, 1.5, 2 …)'),
 })
 
+// Monthly salary list → Days worked box (people paid per day). Whole or half days.
+export const workDaysSchema = z.object({
+  staffId: z.coerce.number({ error: 'Choose the staff member' }).int().positive('Choose the staff member'),
+  month: z.string({ error: 'Choose the month' }).regex(/^\d{4}-\d{2}$/, 'Choose the month'),
+  days: z.coerce.number({ error: 'Enter the days worked' }).min(0, "Days worked can't be below 0").max(31, 'A month has at most 31 days').refine((n) => Number.isInteger(n * 2), 'Whole or half days only (1, 1.5, 2 …)'),
+})
+
 export const payrollSchema = z.object({ month: z.string().regex(/^\d{4}-\d{2}$/, 'Choose the month') })
 
 export const salaryListSchema = z.object({
@@ -91,4 +99,5 @@ export type StaffListQuery = z.infer<typeof staffListSchema>
 export type SalaryPaymentInput = z.infer<typeof salaryPaymentSchema>
 export type PayslipInput = z.infer<typeof payslipSchema>
 export type LeaveInput = z.infer<typeof leaveSchema>
+export type WorkDaysInput = z.infer<typeof workDaysSchema>
 export type SalaryListQuery = z.infer<typeof salaryListSchema>

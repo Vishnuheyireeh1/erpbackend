@@ -35,7 +35,7 @@ export async function payslipPdf(id: number) {
   const before = Number(p.pieceBefore)
   const kept = Math.max(0, Number(p.pieceEarned) + before - Number(p.piecePaid))
   const earnings = ([
-    ['Monthly salary', Number(p.salary)],
+    [Number(p.dayRate) > 0 ? `${Number(p.days)} days x ${inr(p.dayRate)} per day` : 'Monthly salary', Number(p.salary)],
     ['Bonus / extra', Number(p.bonus)],
     [`Per-piece work this month${p.piecePieces ? ` (${p.piecePieces} pcs stitched)` : ''}`, Number(p.pieceEarned)],
     ['Earlier per-piece balance', Math.max(0, before)],

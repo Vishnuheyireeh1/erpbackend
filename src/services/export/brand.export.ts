@@ -38,7 +38,7 @@ export async function exportBrandOrders(res: Response, q: BrandOrderListQuery, u
   const where = orderWhere(q)
   const rows = inBatches((skip, take) =>
     prisma.brandOrder
-      .findMany({ where, orderBy: byDate(q.order), skip, take, include: { items: { select: { qty: true, chargeRate: true, stage: true } }, materials: { select: { amount: true } } } })
+      .findMany({ where, orderBy: byDate(q.order), skip, take, include: { items: { select: { qty: true, chargeRate: true, stage: true, charges: { select: { amount: true } } } }, materials: { select: { amount: true } } } })
       .then((list) => list.map(({ items, materials, ...o }) => ({ ...o, ...orderSums({ ...o, items, materials }) }))),
   )
   type Row = Awaited<ReturnType<typeof listOrders>>['items'][number]

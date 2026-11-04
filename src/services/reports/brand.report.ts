@@ -50,12 +50,12 @@ export async function pendingWork(q: BrandReportQuery) {
   const items = await prisma.brandOrderItem.findMany({
     where: { stage: { not: 'DELIVERED' }, order: { status: 'OPEN', ...(q.brandId ? { brandId: q.brandId } : {}) } },
     orderBy: [{ order: { expectedDate: 'asc' } }, { orderId: 'asc' }, { sortOrder: 'asc' }],
-    include: { order: { select: { id: true, docNo: true, brandName: true, theirOrderNo: true, expectedDate: true } }, tailor: { select: { name: true } } },
+    include: { order: { select: { id: true, docNo: true, brandName: true, theirOrderNo: true, expectedDate: true } }, tailor: { select: { name: true } }, charges: { select: { amount: true } } },
   })
   const rows = items.map((i) => ({
     orderId: i.order.id, docNo: i.order.docNo, brand: i.order.brandName, theirOrderNo: i.order.theirOrderNo, due: i.order.expectedDate,
     late: i.order.expectedDate.toISOString().slice(0, 10) < today, piece: i.description, endCustomer: i.endCustomer, qty: i.qty,
-    tailor: i.tailor?.name ?? null, stage: i.stage, value: r2(i.qty * Number(i.chargeRate)),
+    tailor: i.tailor?.name ?? null, stage: i.stage, value: r2(i.qty * Number(i.chargeRate) + i.charges.reduce((s, c) => s + Number(c.amount), 0)),
   }))
   return { rows, totals: { pieces: rows.reduce((s, r) => s + r.qty, 0), ready: rows.filter((r) => r.stage === 'READY').reduce((s, r) => s + r.qty, 0), late: rows.filter((r) => r.late).reduce((s, r) => s + r.qty, 0), value: r2(rows.reduce((s, r) => s + r.value, 0)) } }
 }
@@ -77,6 +77,39 @@ export async function orderProfit(q: BrandReportQuery) {
   })
   const sum = (k: 'billed' | 'ourCloth' | 'tailorPay' | 'otherCosts' | 'profit') => r2(rows.reduce((s, r) => s + r[k], 0))
   return { from, to, rows, totals: { billed: sum('billed'), ourCloth: sum('ourCloth'), tailorPay: sum('tailorPay'), otherCosts: sum('otherCosts'), profit: sum('profit') } }
+}
+
+// Per customer of the brand (the name on each piece) for orders received in the dates: pieces, delivered, pending and the
+// bill amount, same as the customer's bill: stitching fee + charges + items charged. Same name in any case = one customer.
+export async function customerReport(q: BrandReportQuery) {
+  const { from, to } = monthRange(q)
+  const items = await prisma.brandOrderItem.findMany({
+    where: { order: { status: { not: 'CANCELLED' }, docDate: dateRange(from, to), ...(q.brandId ? { brandId: q.brandId } : {}) } },
+    orderBy: [{ order: { docDate: 'desc' } }, { orderId: 'desc' }, { sortOrder: 'asc' }],
+    include: { order: { select: { id: true, docNo: true, docDate: true, brandName: true } }, materials: { where: { charged: true }, select: { amount: true } }, charges: { select: { amount: true } } },
+  })
+  type Row = { customer: string; brands: Set<string>; orders: Set<number>; pieces: number; delivered: number; amount: number; list: { itemId: number; orderId: number; docNo: string; docDate: Date; brand: string; piece: string; qty: number; stage: string; amount: number }[] }
+  const groups = new Map<string, Row>()
+  for (const i of items) {
+    const name = i.endCustomer?.trim() ?? ''
+    const key = name.toLowerCase()
+    if (!groups.has(key)) groups.set(key, { customer: name || 'No customer name', brands: new Set(), orders: new Set(), pieces: 0, delivered: 0, amount: 0, list: [] })
+    const g = groups.get(key)!
+    const amount = r2(i.qty * Number(i.chargeRate) + i.charges.reduce((s, c) => s + Number(c.amount), 0) + i.materials.reduce((s, m) => s + Number(m.amount), 0))
+    g.brands.add(i.order.brandName)
+    g.orders.add(i.order.id)
+    g.pieces += i.qty
+    if (i.stage === 'DELIVERED') g.delivered += i.qty
+    g.amount = r2(g.amount + amount)
+    g.list.push({ itemId: i.id, orderId: i.order.id, docNo: i.order.docNo, docDate: i.order.docDate, brand: i.order.brandName, piece: i.description, qty: i.qty, stage: i.stage, amount })
+  }
+  const search = q.search?.toLowerCase()
+  const rows = [...groups.values()]
+    .filter((g) => !search || g.customer.toLowerCase().includes(search))
+    .map((g) => ({ customer: g.customer, brands: [...g.brands].join(', '), orders: g.orders.size, pieces: g.pieces, delivered: g.delivered, pending: g.pieces - g.delivered, amount: g.amount, list: g.list }))
+    .sort((a, b) => a.customer.localeCompare(b.customer))
+  const sum = (k: 'pieces' | 'delivered' | 'pending' | 'amount') => r2(rows.reduce((s, r) => s + r[k], 0))
+  return { from, to, rows, totals: { customers: rows.length, pieces: sum('pieces'), delivered: sum('delivered'), pending: sum('pending'), amount: sum('amount') } }
 }
 
 // The brands' own cloth with us, per order: received − used − given back.

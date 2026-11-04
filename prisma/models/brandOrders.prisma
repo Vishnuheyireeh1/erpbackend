@@ -77,11 +77,27 @@ model BrandOrderItem {
 
   materials BrandOrderMaterial[]
   costs     BrandOrderCost[]
+  charges   BrandOrderCharge[]
 
   @@index([orderId])
   @@index([tailorId])
   @@index([billId])
   @@map("brand_order_items")
+}
+
+/// Additional charge on a piece (Sarifal, Interlock …): qty × rate, GST included like the piece price. Billed with the piece.
+model BrandOrderCharge {
+  id        Int            @id @default(autoincrement())
+  itemId    Int            @map("item_id")
+  item      BrandOrderItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  name      String         @db.VarChar(120)
+  qty       Decimal        @default(1) @db.Decimal(10, 2)
+  rate      Decimal        @db.Decimal(12, 2)
+  amount    Decimal        @db.Decimal(14, 2)
+  sortOrder Int            @default(0) @map("sort_order")
+
+  @@index([itemId])
+  @@map("brand_order_charges")
 }
 
 /// Cloth / lining from OUR stock for a piece — stock OUT when added. charged = billed to the brand with the piece

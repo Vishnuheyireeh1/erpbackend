@@ -4,7 +4,7 @@ import { cancelBill, deliver } from '../services/brands/brandBill.service'
 import { addEntry, removeEntry } from '../services/brands/brandCloth.service'
 import { cancelPayment, createPayment, listPayments, statement } from '../services/brands/brandPayment.service'
 import * as exporter from '../services/export/brandReport.export'
-import { brandSummary, clothReport, orderProfit, pendingWork } from '../services/reports/brand.report'
+import { brandSummary, clothReport, customerReport, orderProfit, pendingWork } from '../services/reports/brand.report'
 import { ApiError } from '../utils/ApiError'
 import { brandReportSchema, type BrandClothInput, type BrandDeliverInput, type BrandPaymentInput } from '../validators/brandBill.validator'
 
@@ -47,8 +47,8 @@ export const brandStatementExport = (req: Request, res: Response) => exporter.ex
 export const clothAdd = async (req: Request, res: Response) => res.status(201).json({ success: true, items: await addEntry(readId(req), req.body as BrandClothInput, user(req)) })
 export const clothRemove = async (req: Request, res: Response) => res.json({ success: true, items: await removeEntry(readId(req), readId(req, 'entryId'), user(req)) })
 
-// /api/reports/brands/:kind (summary | pending-work | profit | cloth) (+ /export)
-const REPORTS = { summary: brandSummary, 'pending-work': pendingWork, profit: orderProfit, cloth: clothReport } as const
+// /api/reports/brands/:kind (summary | pending-work | profit | customers | cloth) (+ /export)
+const REPORTS = { summary: brandSummary, 'pending-work': pendingWork, profit: orderProfit, customers: customerReport, cloth: clothReport } as const
 function kindOf(req: Request) {
   const kind = String(req.params.kind)
   if (!(kind in REPORTS)) throw ApiError.notFound('Unknown report')

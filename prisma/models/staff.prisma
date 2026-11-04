@@ -16,6 +16,7 @@ model Staff {
   role      String          @db.VarChar(60) // Cutting master, Hand work, Sales staff …
   dept      StaffDept       @default(SHOP)
   salary    Decimal         @default(0) @db.Decimal(12, 2) // usual monthly salary (for reference / pre-fill)
+  dayRate   Decimal         @default(0) @map("day_rate") @db.Decimal(12, 2) // paid per day: pay = this × days worked in the month
   joinDate  DateTime?       @map("join_date") @db.Date
   notes     String?         @db.VarChar(500)
   isActive  Boolean         @default(true) @map("is_active")
@@ -25,6 +26,7 @@ model Staff {
   batches   Batch[]
   payslips  Payslip[]
   leaves    StaffLeave[]
+  workDays  StaffWorkDays[]
   measured  JobItem[]       @relation("JobItemMeasuredBy") // garments they took measurements for
   brandMeasured BrandOrderItem[] @relation("BrandItemMeasuredBy") // brand order pieces they measured
   worker    Tailor? // job-work profile (stitching, embroidery …) — balance, work done, pay
@@ -45,6 +47,20 @@ model StaffLeave {
   @@id([staffId, month])
   @@index([month])
   @@map("staff_leaves")
+}
+
+/// Days worked in a month by someone paid per day (one row per person per month; 0 days = no row). Pay = day rate × days.
+model StaffWorkDays {
+  staffId   Int      @map("staff_id")
+  staff     Staff    @relation(fields: [staffId], references: [id], onDelete: Cascade)
+  month     DateTime @db.Date // first day
+  days      Decimal  @db.Decimal(4, 1) // half days allowed
+  updatedBy String   @map("updated_by") @db.VarChar(50)
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@id([staffId, month])
+  @@index([month])
+  @@map("staff_work_days")
 }
 
 /// Salary (or part / advance of it) paid to a staff member — SAL/2026-27/0001. Shows in day book and profit & loss.
@@ -82,7 +98,9 @@ model Payslip {
   staff           Staff          @relation(fields: [staffId], references: [id], onDelete: Restrict)
   month           DateTime       @db.Date // first day
   docDate         DateTime       @map("doc_date") @db.Date // paid on
-  salary          Decimal        @default(0) @db.Decimal(12, 2) // monthly salary
+  salary          Decimal        @default(0) @db.Decimal(12, 2) // monthly salary (paid per day: day rate × days)
+  dayRate         Decimal        @default(0) @map("day_rate") @db.Decimal(12, 2)
+  days            Decimal        @default(0) @db.Decimal(4, 1) // days worked (paid per day)
   advance         Decimal        @default(0) @db.Decimal(12, 2) // already paid for this month before the payslip
   bonus           Decimal        @default(0) @db.Decimal(12, 2)
   deduction       Decimal        @default(0) @db.Decimal(12, 2) // leave … (typed by hand)

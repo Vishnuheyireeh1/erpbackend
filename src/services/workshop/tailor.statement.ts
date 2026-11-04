@@ -57,13 +57,24 @@ export function earnedRows(f: { tailorIds?: number[]; from?: string; to?: string
     SELECT * FROM earned WHERE ${Prisma.join(conds, ' AND ')} ORDER BY earned_on, job_id`
 }
 
-// Earned + paid totals for many tailors (list screen).
-export async function balances(ids: number[]) {
+// Extra pay of salaried people: only pay typed for them on a brand order (cutting master), not their ₹0 / cost-only work.
+// Paid through Monthly salary; in the books it becomes a cost when paid (Salaried worker pay).
+export function extraPayRows(f: { tailorIds: number[]; to: string }) {
+  return prisma.$queryRaw<EarnedRow[]>`
+    SELECT c.tailor_id, 'BRD' AS kind, o.id AS job_id, o.doc_no, c.date AS earned_on, SUM(c.qty)::int AS pieces, SUM(c.amount) AS labour,
+      string_agg(c.qty::numeric(14,0) || ' × ' || k.name || ' (' || o.brand_name || ')', ', ' ORDER BY c.id) AS garments
+    FROM brand_order_costs c JOIN brand_orders o ON o.id = c.order_id JOIN job_cost_categories k ON k.id = c.category_id JOIN tailors t ON t.id = c.tailor_id AND t.pay_type = 'SALARY'
+    WHERE c.paid_by = 'WORKER' AND c.amount > 0 AND o.status <> 'CANCELLED' AND c.tailor_id = ANY(${f.tailorIds}) AND c.date <= ${f.to}::date
+    GROUP BY c.tailor_id, o.id, c.date ORDER BY c.date, o.id`
+}
+
+// Earned + paid totals for many tailors (list screen). upTo = only up to that date (cutoff), both earned and paid.
+export async function balances(ids: number[], upTo?: string) {
   const map = new Map(ids.map((id) => [id, { earned: 0, paid: 0 }]))
   if (!ids.length) return map
   const [earned, paid] = await Promise.all([
-    earnedRows({ tailorIds: ids }),
-    prisma.tailorPayment.groupBy({ by: ['tailorId'], where: { tailorId: { in: ids }, status: 'POSTED' }, _sum: { amount: true } }),
+    earnedRows({ tailorIds: ids, to: upTo }),
+    prisma.tailorPayment.groupBy({ by: ['tailorId'], where: { tailorId: { in: ids }, status: 'POSTED', ...(upTo ? { docDate: { lte: new Date(`${upTo}T00:00:00Z`) } } : {}) }, _sum: { amount: true } }),
   ])
   for (const e of earned) map.get(e.tailor_id)!.earned = r2(map.get(e.tailor_id)!.earned + Number(e.labour))
   for (const p of paid) map.get(p.tailorId)!.paid = Number(p._sum.amount ?? 0)

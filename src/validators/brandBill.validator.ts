@@ -39,6 +39,7 @@ export const brandReportSchema = z.object({
   brandId: z.coerce.number().int().positive().optional(),
   from: date('From').optional(),
   to: date('To').optional(),
+  search: z.string().trim().max(120).optional(), // customers report: part of the name
 })
 
 export type BrandDeliverInput = z.infer<typeof brandDeliverSchema>

@@ -79,13 +79,13 @@ async function brand(map: Map<string, Acc>, from: string, to: string) {
   const orders = await prisma.brandOrder.findMany({
     where: { status: { not: 'CANCELLED' }, items: { some: { bill: { status: 'POSTED', docDate: { gte: new Date(`${from}T00:00:00Z`), lte: new Date(`${to}T00:00:00Z`) } } } } },
     include: {
-      items: { include: { garmentType: { select: { name: true } }, materials: true, bill: { select: { status: true, docDate: true, gstRate: true } } } },
+      items: { include: { garmentType: { select: { name: true } }, materials: true, charges: true, bill: { select: { status: true, docDate: true, gstRate: true } } } },
       costs: { include: { category: { select: { name: true } } } },
     },
   })
   const inRange = (d: Date) => d.toISOString().slice(0, 10) >= from && d.toISOString().slice(0, 10) <= to
   for (const o of orders) {
-    const value = (i: (typeof o.items)[number]) => i.qty * Number(i.chargeRate) + i.materials.reduce((s, m) => s + Number(m.amount), 0)
+    const value = (i: (typeof o.items)[number]) => i.qty * Number(i.chargeRate) + i.charges.reduce((s, c) => s + Number(c.amount), 0) + i.materials.reduce((s, m) => s + Number(m.amount), 0)
     const share = shares(o.items.map(value))
     o.items.forEach((i, n) => {
       if (!i.bill || i.bill.status !== 'POSTED' || !inRange(i.bill.docDate)) return

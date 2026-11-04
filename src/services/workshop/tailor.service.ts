@@ -71,7 +71,7 @@ export async function fromStaff(staffId: number, user: string) {
     const old = await tx.tailor.findUnique({ where: { staffId } })
     if (old) return old.isActive ? old : tx.tailor.update({ where: { id: old.id }, data: { isActive: true } })
     const code = `T${String(await nextValue(tx, 'tailor')).padStart(3, '0')}`
-    const worker = await tx.tailor.create({ data: { code, staffId, name: staff.name, phone: staff.phone, speciality: staff.role, payType: Number(staff.salary) > 0 ? 'SALARY' : 'PIECE', stitches: true } })
+    const worker = await tx.tailor.create({ data: { code, staffId, name: staff.name, phone: staff.phone, speciality: staff.role, payType: Number(staff.salary) > 0 || Number(staff.dayRate) > 0 ? 'SALARY' : 'PIECE', stitches: true } })
     await audit(tx, { actor: user, action: 'tailor.fromStaff', entity: 'tailor', entityId: worker.id, summary: `${staff.name} given job work (${code}) — picked in Assign workers` })
     return worker
   })

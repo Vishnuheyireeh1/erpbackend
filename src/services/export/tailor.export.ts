@@ -53,9 +53,9 @@ export async function exportTailorWork(res: Response, q: Range, user: string) {
     { header: 'Pieces', value: (t) => t.pieces, type: 'number' },
     { header: 'Labour earned', value: (t) => t.labour, type: 'money' },
     { header: 'Paid in period', value: (t) => t.paid, type: 'money' },
-    { header: 'Balance now', value: (t) => t.balance, type: 'money' },
+    { header: 'Balance at cutoff', value: (t) => t.balance, type: 'money' },
   ]
-  return sendExcel(res, { fileName: 'tailor-work', title: 'Tailor work', filters: [`${r.from} to ${r.to}`], columns, rows: [r.rows], user })
+  return sendExcel(res, { fileName: 'tailor-work', title: 'Tailor work', filters: [`Cutoff date: ${r.to}`, `Work from ${r.from} to ${r.to}`], columns, rows: [r.rows], user })
 }
 
 // One row per job, lowest profit first (the by-garment summary is on the screen).

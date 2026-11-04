@@ -32,19 +32,21 @@ export function orderWhere(q: Omit<BrandOrderListQuery, 'page' | 'pageSize' | 'o
   return where
 }
 
-type Summed = { status: string; items: { qty: number; chargeRate: Prisma.Decimal; stage: string }[]; materials: { amount: Prisma.Decimal }[] }
-// Pieces by stage and the order's value (pieces + items charged), before any bill.
+type Charged = { charges: { amount: Prisma.Decimal }[] }
+const chargesOf = (i: Charged) => i.charges.reduce((s, c) => s + Number(c.amount), 0)
+type Summed = { status: string; items: ({ qty: number; chargeRate: Prisma.Decimal; stage: string } & Charged)[]; materials: { amount: Prisma.Decimal }[] }
+// Pieces by stage and the order's value (pieces + charges + items charged), before any bill.
 export function orderSums(o: Summed) {
   const count = (stage?: string) => o.items.filter((i) => !stage || i.stage === stage).reduce((s, i) => s + i.qty, 0)
-  const value = r2(o.items.reduce((s, i) => s + i.qty * Number(i.chargeRate), 0) + o.materials.reduce((s, m) => s + Number(m.amount), 0))
+  const value = r2(o.items.reduce((s, i) => s + i.qty * Number(i.chargeRate) + chargesOf(i), 0) + o.materials.reduce((s, m) => s + Number(m.amount), 0))
   return { pieces: count(), inWork: count('IN_WORK'), ready: count('READY'), delivered: count('DELIVERED'), value }
 }
 
 // What this order comes to and what is left: delivered pieces at their bills (GST and round off included), the rest at their price.
-type Moneyed = { status: string; items: { id: number; qty: number; chargeRate: Prisma.Decimal; stage: string }[]; materials: { itemId: number; amount: Prisma.Decimal }[]; bills: { status: string; grandTotal: Prisma.Decimal }[]; payments: { amount: Prisma.Decimal }[] }
+type Moneyed = { status: string; items: ({ id: number; qty: number; chargeRate: Prisma.Decimal; stage: string } & Charged)[]; materials: { itemId: number; amount: Prisma.Decimal }[]; bills: { status: string; grandTotal: Prisma.Decimal }[]; payments: { amount: Prisma.Decimal }[] }
 function orderMoney(o: Moneyed) {
   const billed = o.bills.filter((b) => b.status === 'POSTED').reduce((s, b) => s + Number(b.grandTotal), 0)
-  const notBilled = o.items.filter((i) => i.stage !== 'DELIVERED').reduce((s, i) => s + i.qty * Number(i.chargeRate) + o.materials.filter((m) => m.itemId === i.id).reduce((t, m) => t + Number(m.amount), 0), 0)
+  const notBilled = o.items.filter((i) => i.stage !== 'DELIVERED').reduce((s, i) => s + i.qty * Number(i.chargeRate) + chargesOf(i) + o.materials.filter((m) => m.itemId === i.id).reduce((t, m) => t + Number(m.amount), 0), 0)
   const total = o.status === 'CANCELLED' ? 0 : r2(billed + notBilled)
   const received = r2(o.payments.reduce((s, p) => s + Number(p.amount), 0))
   return { total, received, balance: r2(Math.max(0, total - received)) }
@@ -55,7 +57,7 @@ export async function listOrders(q: BrandOrderListQuery) {
   const [rows, total] = await Promise.all([
     prisma.brandOrder.findMany({
       where, orderBy: byDate(q.order), skip: (q.page - 1) * q.pageSize, take: q.pageSize,
-      include: { items: { select: { qty: true, chargeRate: true, stage: true } }, materials: { select: { amount: true } } },
+      include: { items: { select: { qty: true, chargeRate: true, stage: true, charges: { select: { amount: true } } } }, materials: { select: { amount: true } } },
     }),
     prisma.brandOrder.count({ where }),
   ])
@@ -70,7 +72,7 @@ export async function getOrder(id: number) {
       brand: { select: { id: true, code: true, name: true, phone: true, gstin: true, gstRate: true } },
       items: {
         orderBy: [{ sortOrder: 'asc' }, { id: 'asc' }],
-        include: { garmentType: { select: { id: true, name: true, fields: true } }, tailor: { select: { id: true, name: true, payType: true } }, measuredBy: { select: { id: true, name: true } } },
+        include: { charges: { orderBy: { sortOrder: 'asc' } }, garmentType: { select: { id: true, name: true, fields: true } }, tailor: { select: { id: true, name: true, payType: true } }, measuredBy: { select: { id: true, name: true } } },
       },
       materials: { orderBy: { id: 'asc' }, include: { variant: { select: { sku: true, product: { select: { unit: { select: { code: true } } } } } } } },
       bills: { orderBy: { id: 'asc' }, select: { id: true, docNo: true, docDate: true, grandTotal: true, gstRate: true, status: true, _count: { select: { items: true } } } },

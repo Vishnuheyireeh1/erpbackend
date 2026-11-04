@@ -3,13 +3,13 @@ import { filterText, sendExcel, type ExcelColumn } from '../../utils/excel'
 import type { BrandReportQuery } from '../../validators/brandBill.validator'
 import { listBills } from '../brands/brandBill.query'
 import { listPayments, statement } from '../brands/brandPayment.service'
-import { brandSummary, clothReport, orderProfit, pendingWork } from '../reports/brand.report'
+import { brandSummary, clothReport, customerReport, orderProfit, pendingWork } from '../reports/brand.report'
 
 // Excel for every brand list / report (same filters as the screen).
 
 type Col<T> = ExcelColumn<T>
 const STAGE: Record<string, string> = { IN_WORK: 'In work', READY: 'Ready', DELIVERED: 'Delivered' }
-const filters = (q: BrandReportQuery & { from?: string; to?: string }) => filterText([['From', q.from], ['To', q.to]])
+const filters = (q: BrandReportQuery & { from?: string; to?: string }) => filterText([['From', q.from], ['To', q.to], ['Customer', q.search]])
 
 export async function exportBrandReport(res: Response, kind: string, q: BrandReportQuery, user: string) {
   if (kind === 'summary') {
@@ -45,6 +45,16 @@ export async function exportBrandReport(res: Response, kind: string, q: BrandRep
       { header: 'Tailor pay', value: (x) => x.tailorPay, type: 'money' }, { header: 'Other costs', value: (x) => x.otherCosts, type: 'money' }, { header: 'Profit', value: (x) => x.profit, type: 'money' },
     ]
     return sendExcel(res, { fileName: 'brand-order-profit', title: 'Profit per brand order', filters: filters(r), columns, rows: [r.rows], user })
+  }
+  if (kind === 'customers') {
+    const r = await customerReport(q)
+    type R = (typeof r.rows)[number]
+    const columns: Col<R>[] = [
+      { header: 'Customer', value: (x) => x.customer, width: 26 }, { header: 'Brand', value: (x) => x.brands, width: 24 }, { header: 'Orders', value: (x) => x.orders, type: 'number', width: 9 },
+      { header: 'Pieces', value: (x) => x.pieces, type: 'number', width: 8 }, { header: 'Delivered', value: (x) => x.delivered, type: 'number', width: 9 }, { header: 'Pending', value: (x) => x.pending, type: 'number', width: 9 },
+      { header: 'Bill amount', value: (x) => x.amount, type: 'money' },
+    ]
+    return sendExcel(res, { fileName: 'brand-customers', title: 'Brand orders by customer', filters: filters({ ...q, from: r.from, to: r.to }), columns, rows: [r.rows], user })
   }
   const r = await clothReport(q)
   type R = (typeof r.rows)[number]

@@ -32,7 +32,7 @@ export async function deliver(orderId: number, input: BrandDeliverInput, user: s
   const billId = await prisma.$transaction(async (tx) => {
     const order = await lockOpenOrder(tx, orderId)
     const brand = await tx.partnerBrand.findUniqueOrThrow({ where: { id: order.brandId } })
-    const items = await tx.brandOrderItem.findMany({ where: { orderId, id: { in: input.itemIds } }, orderBy: [{ sortOrder: 'asc' }, { id: 'asc' }], include: { materials: { where: { charged: true }, include: { variant: { select: { product: { select: { unit: { select: { code: true } } } } } } } } } })
+    const items = await tx.brandOrderItem.findMany({ where: { orderId, id: { in: input.itemIds } }, orderBy: [{ sortOrder: 'asc' }, { id: 'asc' }], include: { charges: { orderBy: { sortOrder: 'asc' } }, materials: { where: { charged: true }, include: { variant: { select: { product: { select: { unit: { select: { code: true } } } } } } } } } })
     if (items.length !== new Set(input.itemIds).size) throw ApiError.badRequest('A piece is not part of this order — reload the page')
     const done = items.find((i) => i.stage === 'DELIVERED')
     if (done) throw ApiError.badRequest(`${done.description}${done.endCustomer ? ` (${done.endCustomer})` : ''} is already delivered`)
@@ -40,6 +40,7 @@ export async function deliver(orderId: number, input: BrandDeliverInput, user: s
     let k = 0
     const lines = items.flatMap((i) => [
       { kind: 'PIECE', description: i.description, endCustomer: i.endCustomer, qty: i.qty, unit: 'NOS', rate: Number(i.chargeRate), amount: r2(i.qty * Number(i.chargeRate)), sortOrder: k++ },
+      ...i.charges.map((c) => ({ kind: 'CHARGE', description: c.name, endCustomer: null, qty: Number(c.qty), unit: 'NOS', rate: Number(c.rate), amount: Number(c.amount), sortOrder: k++ })),
       ...i.materials.map((m) => ({ kind: 'ITEM', description: m.description, endCustomer: null, qty: Number(m.qty), unit: m.variant.product.unit.code.toUpperCase().slice(0, 10), rate: Number(m.rate), amount: Number(m.amount), sortOrder: k++ })),
     ])
     const taxMode = taxModeFor(profile.stateCode, brand.stateCode)

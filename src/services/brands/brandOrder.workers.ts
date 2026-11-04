@@ -38,9 +38,11 @@ export async function setWorkers(orderId: number, input: BrandWorkersInput, user
       for (const w of i.works) {
         const prev = before.find((c) => c.categoryId === w.categoryId)
         const by = person(w.tailorId, prev?.tailorId === w.tailorId)
-        const rate = by.payType === 'PIECE' ? w.rate : 0
+        // Extra pay set on the order form for a salaried cutting master stays, while it is the same person.
+        const owed = by.payType === 'PIECE' || (prev?.paidBy === 'WORKER' && prev.tailorId === by.id)
+        const rate = owed ? w.rate : 0
         await tx.brandOrderCost.create({
-          data: { orderId, itemId: i.id, categoryId: w.categoryId, tailorId: by.id, date: prev?.date ?? today, description: prev?.description ?? null, qty: item.qty, rate, amount: r2(item.qty * rate), paidBy: by.payType === 'PIECE' ? 'WORKER' : 'SALARIED', createdBy: prev?.createdBy ?? user },
+          data: { orderId, itemId: i.id, categoryId: w.categoryId, tailorId: by.id, date: prev?.date ?? today, description: prev?.description ?? null, qty: item.qty, rate, amount: r2(item.qty * rate), paidBy: owed ? 'WORKER' : 'SALARIED', createdBy: prev?.createdBy ?? user },
         })
       }
       changes.push(`${item.description}: ${tailor?.name ?? 'no tailor'}${i.works.length ? ` + ${i.works.length} other work` : ''}`)

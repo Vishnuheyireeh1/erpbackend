@@ -74,7 +74,7 @@ export async function update(id: number, input: StaffInput, user: string) {
   await prisma.$transaction(async (tx) => {
     const s = await tx.staff.update({ where: { id }, data })
     const w = await syncWorkerTx(tx, s, work)
-    const salary = Number(before.salary) !== input.salary ? ` — salary ₹${before.salary} → ₹${input.salary}` : ''
+    const salary = (Number(before.salary) !== input.salary ? ` — salary ₹${before.salary} → ₹${input.salary}` : '') + (Number(before.dayRate) !== input.dayRate ? ` — per day ₹${before.dayRate} → ₹${input.dayRate}` : '')
     await audit(tx, { actor: user, action: 'staff.update', entity: 'staff', entityId: id, summary: `${before.code} ${input.name} updated${salary}${w ? ` — ${w}` : ''}` })
   })
   return getById(id)
@@ -95,4 +95,4 @@ export async function remove(id: number, user: string) {
 }
 
 export const options = () =>
-  prisma.staff.findMany({ where: { isActive: true }, orderBy: { name: 'asc' }, select: { id: true, code: true, name: true, role: true, salary: true } })
+  prisma.staff.findMany({ where: { isActive: true }, orderBy: { name: 'asc' }, select: { id: true, code: true, name: true, role: true, salary: true, dayRate: true } })

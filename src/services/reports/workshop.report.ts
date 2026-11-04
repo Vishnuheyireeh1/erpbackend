@@ -13,7 +13,8 @@ export function monthRange(q: { from?: string; to?: string }) {
   return { from: q.from ?? `${today.slice(0, 8)}01`, to: q.to ?? today }
 }
 
-// Per tailor: jobs / pieces / labour earned in the period (by the day the job got Ready), paid in the period, balance now.
+// Per tailor: jobs / pieces / labour earned in the period (by the day the job got Ready), paid in the period, balance at
+// the cutoff date (= the "to" date): opening + earned − paid, counting nothing after that date.
 export async function tailorWork(q: { from?: string; to?: string }) {
   const { from, to } = monthRange(q)
   const [tailors, earned, paid] = await Promise.all([
@@ -21,7 +22,7 @@ export async function tailorWork(q: { from?: string; to?: string }) {
     earnedRows({ from, to }),
     prisma.tailorPayment.groupBy({ by: ['tailorId'], where: { status: 'POSTED', docDate: { gte: new Date(`${from}T00:00:00Z`), lte: new Date(`${to}T00:00:00Z`) } }, _sum: { amount: true } }),
   ])
-  const all = await balances(tailors.map((t) => t.id))
+  const all = await balances(tailors.map((t) => t.id), to)
   const rows = tailors.map((t) => {
     const mine = earned.filter((e) => e.tailor_id === t.id)
     const b = all.get(t.id)!
