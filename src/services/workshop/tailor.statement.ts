@@ -57,15 +57,27 @@ export function earnedRows(f: { tailorIds?: number[]; from?: string; to?: string
     SELECT * FROM earned WHERE ${Prisma.join(conds, ' AND ')} ORDER BY earned_on, job_id`
 }
 
-// Extra pay of salaried people: only pay typed for them on a brand order (cutting master), not their ₹0 / cost-only work.
+// Extra pay of salaried people: only pay typed for them as cutting master (brand orders, stitching jobs once Ready), not
+// their ₹0 / cost-only work.
 // Paid through Monthly salary; in the books it becomes a cost when paid (Salaried worker pay).
 export function extraPayRows(f: { tailorIds: number[]; to: string }) {
   return prisma.$queryRaw<EarnedRow[]>`
-    SELECT c.tailor_id, 'BRD' AS kind, o.id AS job_id, o.doc_no, c.date AS earned_on, SUM(c.qty)::int AS pieces, SUM(c.amount) AS labour,
-      string_agg(c.qty::numeric(14,0) || ' × ' || k.name || ' (' || o.brand_name || ')', ', ' ORDER BY c.id) AS garments
-    FROM brand_order_costs c JOIN brand_orders o ON o.id = c.order_id JOIN job_cost_categories k ON k.id = c.category_id JOIN tailors t ON t.id = c.tailor_id AND t.pay_type = 'SALARY'
-    WHERE c.paid_by = 'WORKER' AND c.amount > 0 AND o.status <> 'CANCELLED' AND c.tailor_id = ANY(${f.tailorIds}) AND c.date <= ${f.to}::date
-    GROUP BY c.tailor_id, o.id, c.date ORDER BY c.date, o.id`
+    WITH extra AS (
+      SELECT c.tailor_id, 'BRD' AS kind, o.id AS job_id, o.doc_no, c.date AS earned_on, SUM(c.qty)::int AS pieces, SUM(c.amount) AS labour,
+        string_agg(c.qty::numeric(14,0) || ' × ' || k.name || ' (' || o.brand_name || ')', ', ' ORDER BY c.id) AS garments
+      FROM brand_order_costs c JOIN brand_orders o ON o.id = c.order_id JOIN job_cost_categories k ON k.id = c.category_id JOIN tailors t ON t.id = c.tailor_id AND t.pay_type = 'SALARY'
+      WHERE c.paid_by = 'WORKER' AND c.amount > 0 AND o.status <> 'CANCELLED' AND c.tailor_id = ANY(${f.tailorIds})
+      GROUP BY c.tailor_id, o.id, c.date
+      UNION ALL
+      SELECT e.tailor_id, 'JOB', j.id, j.doc_no,
+        COALESCE((SELECT (min(l.at) AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Kolkata')::date FROM job_status_logs l
+                  WHERE l.job_id = j.id AND l.to_status IN ('READY', 'DELIVERED')), j.doc_date),
+        SUM(e.qty)::int, SUM(e.amount), string_agg(e.qty::numeric(14,0) || ' × ' || k.name, ', ' ORDER BY e.id)
+      FROM job_cost_entries e JOIN stitching_jobs j ON j.id = e.job_id JOIN job_cost_categories k ON k.id = e.category_id JOIN tailors t ON t.id = e.tailor_id AND t.pay_type = 'SALARY'
+      WHERE e.paid_by = 'WORKER' AND e.amount > 0 AND j.status IN ('READY', 'DELIVERED') AND e.tailor_id = ANY(${f.tailorIds})
+      GROUP BY e.tailor_id, j.id
+    )
+    SELECT * FROM extra WHERE earned_on <= ${f.to}::date ORDER BY earned_on, job_id`
 }
 
 // Earned + paid totals for many tailors (list screen). upTo = only up to that date (cutoff), both earned and paid.

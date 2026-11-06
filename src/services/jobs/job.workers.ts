@@ -9,7 +9,8 @@ import { getJob } from './job.query'
 // Job work → "Assign workers" (set by the workshop after billing, any time — even after hand over). Per garment:
 //   stitching   = the garment line: tailor + pay per piece (+ a note when the pay was changed)
 //   other work  = one work line per work done (Cutting, Lining, Embroidery …) with who did it
-// Per-piece people → pay owed to them once the job is Ready (WORKER). Salaried people → no pay, only who did it (SALARIED).
+// Per-piece people → pay owed to them once the job is Ready (WORKER). Salaried people → no pay, only who did it (SALARIED);
+// a salaried cutting master with a pay typed → WORKER too: extra pay on top of salary (paid through Monthly salary).
 // The garment's work lines are replaced as a whole set; money paid out in cash (PAID lines) is never touched.
 
 const r2 = (n: number) => Math.round(n * 100) / 100
@@ -50,8 +51,9 @@ export async function setWorkers(jobId: number, input: JobWorkersInput, user: st
       const old = before(i.id, w.categoryId)
       const by = person(w.tailorId, old?.tailorId)
       if (!by) continue // "not needed"
-      const rate = by.payType === 'PIECE' ? w.rate : 0
-      entries.push({ jobItemId: i.id, categoryId: cat.id, tailorId: by.id, date: old?.date ?? today, description: w.note, qty: item.qty, rate, amount: r2(item.qty * rate), paidBy: by.payType === 'PIECE' ? 'WORKER' : 'SALARIED' })
+      const owed = by.payType === 'PIECE' || (/^cutting$/i.test(cat.name) && w.rate > 0)
+      const rate = owed ? w.rate : 0
+      entries.push({ jobItemId: i.id, categoryId: cat.id, tailorId: by.id, date: old?.date ?? today, description: w.note, qty: item.qty, rate, amount: r2(item.qty * rate), paidBy: owed ? 'WORKER' : 'SALARIED' })
       parts.push(`${cat.name.toLowerCase()} ${by.name}${rate ? ` ₹${rate}` : ''}`)
     }
     changes.push(`${item.description}: ${parts.join(', ')}`)

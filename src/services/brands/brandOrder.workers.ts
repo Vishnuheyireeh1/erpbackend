@@ -15,6 +15,7 @@ export async function setWorkers(orderId: number, input: BrandWorkersInput, user
   const ids = [...new Set(input.items.flatMap((i) => [i.tailorId, ...i.works.map((w) => w.tailorId)]).filter((v): v is number => !!v))]
   const workers = await prisma.tailor.findMany({ where: { id: { in: ids } }, select: { id: true, name: true, isActive: true, payType: true } })
   const today = toDocDate(undefined).date
+  const cutting = await prisma.jobCostCategory.findFirst({ where: { name: { equals: 'Cutting', mode: 'insensitive' } }, select: { id: true } })
 
   await prisma.$transaction(async (tx) => {
     const order = await lockOpenOrder(tx, orderId)
@@ -38,8 +39,8 @@ export async function setWorkers(orderId: number, input: BrandWorkersInput, user
       for (const w of i.works) {
         const prev = before.find((c) => c.categoryId === w.categoryId)
         const by = person(w.tailorId, prev?.tailorId === w.tailorId)
-        // Extra pay set on the order form for a salaried cutting master stays, while it is the same person.
-        const owed = by.payType === 'PIECE' || (prev?.paidBy === 'WORKER' && prev.tailorId === by.id)
+        // A salaried cutting master with a pay typed: extra pay on top of salary.
+        const owed = by.payType === 'PIECE' || (w.categoryId === cutting?.id && w.rate > 0)
         const rate = owed ? w.rate : 0
         await tx.brandOrderCost.create({
           data: { orderId, itemId: i.id, categoryId: w.categoryId, tailorId: by.id, date: prev?.date ?? today, description: prev?.description ?? null, qty: item.qty, rate, amount: r2(item.qty * rate), paidBy: owed ? 'WORKER' : 'SALARIED', createdBy: prev?.createdBy ?? user },
