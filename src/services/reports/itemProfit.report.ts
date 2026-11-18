@@ -89,7 +89,7 @@ async function brand(map: Map<string, Acc>, from: string, to: string) {
     const share = shares(o.items.map(value))
     o.items.forEach((i, n) => {
       if (!i.bill || i.bill.status !== 'POSTED' || !inRange(i.bill.docDate)) return
-      const a = bucket(map, 'BRAND', i.garmentType.name)
+      const a = bucket(map, 'BRAND', i.garmentType?.name ?? i.description)
       a.pieces += i.qty
       a.total += value(i) / (1 + Number(i.bill.gstRate) / 100)
       a.tailor += i.qty * Number(i.labourRate)

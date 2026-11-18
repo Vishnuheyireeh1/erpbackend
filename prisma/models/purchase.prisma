@@ -48,6 +48,7 @@ model Supplier {
   purchases PurchaseInvoice[]
   payments  SupplierPayment[]
   returns   PurchaseReturn[]
+  products  Product[]
 
   @@index([name])
   @@map("suppliers")

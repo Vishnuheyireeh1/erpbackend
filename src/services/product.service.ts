@@ -4,6 +4,7 @@ import { ApiError } from '../utils/ApiError'
 import type { ProductListQuery } from '../validators/product.validator'
 import { deleteProductImage, saveProductImage } from './product/product.image'
 import { makingStats } from './product/product.making'
+import { latestSuppliers, supplierName } from './product/product.suppliers'
 
 export { createProduct, updateProduct } from './product/product.save'
 
@@ -12,14 +13,18 @@ export { createProduct, updateProduct } from './product/product.save'
 export async function list(query: ProductListQuery) {
   const { items, total } = await productModel.list(query)
   const ownMade = query.type === 'FINISHED' || (!!query.productTypeId && items.length > 0 && items.every((p) => p.type === 'FINISHED'))
-  const made = ownMade ? await makingStats(items.map((p) => p.id)) : null
-  const rows = items.map(({ variants, ...p }) => {
+  const [made, bought] = await Promise.all([
+    ownMade ? makingStats(items.map((p) => p.id)) : null,
+    latestSuppliers(items.filter((p) => !p.supplier).map((p) => p.id)),
+  ])
+  const rows = items.map(({ variants, supplier, ...p }) => {
     const prices = variants.map((v) => Number(v.sellingPrice))
     const totalStock = variants.reduce((sum, v) => sum + Number(v.stockQty), 0)
     const stockValue = variants.reduce((sum, v) => sum + Number(v.stockValue), 0)
     const m = made?.get(p.id)
     return {
       ...p,
+      supplierName: supplierName({ id: p.id, supplier }, bought),
       variantCount: variants.length,
       totalStock,
       minPrice: prices.length ? Math.min(...prices) : 0,

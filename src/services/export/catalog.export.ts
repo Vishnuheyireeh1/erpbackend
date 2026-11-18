@@ -6,6 +6,7 @@ import type { ListQuery, MasterKey } from '../../validators/master.validator'
 import type { ProductListQuery } from '../../validators/product.validator'
 import { buildWhere } from '../master.service'
 import { masterRegistry } from '../masters/master.registry'
+import { latestSuppliers, supplierName } from '../product/product.suppliers'
 
 const typeLabels: Record<string, string> = {
   READY_MADE: 'Ready-made', FINISHED: 'Own-made', RAW_MATERIAL: 'Raw material', ACCESSORY: 'Accessory', SERVICE: 'Service',
@@ -17,7 +18,8 @@ const variantSelect = {
   colour: { select: { name: true } },
   product: {
     select: {
-      code: true, name: true, type: true, hsnCode: true, fabric: true, isActive: true,
+      id: true, code: true, name: true, type: true, hsnCode: true, fabric: true, isActive: true,
+      supplier: { select: { name: true } },
       productType: { select: { name: true } },
       category: { select: { name: true, parent: { select: { name: true } } } },
       unit: { select: { code: true } },
@@ -27,14 +29,16 @@ const variantSelect = {
 } as const
 
 type VariantRow = Awaited<ReturnType<typeof fetchVariants>>[number]
-function fetchVariants(q: ProductListQuery, skip: number, take: number) {
-  return prisma.productVariant.findMany({
+async function fetchVariants(q: ProductListQuery, skip: number, take: number) {
+  const rows = await prisma.productVariant.findMany({
     where: { product: listWhere(q) },
     orderBy: [{ product: { name: 'asc' } }, { id: 'asc' }],
     skip,
     take,
     select: variantSelect,
   })
+  const bought = await latestSuppliers([...new Set(rows.filter((v) => !v.product.supplier).map((v) => v.product.id))])
+  return rows.map((v) => ({ ...v, supplierName: supplierName(v.product, bought) }))
 }
 
 const productColumns: ExcelColumn<VariantRow>[] = [
@@ -42,6 +46,7 @@ const productColumns: ExcelColumn<VariantRow>[] = [
   { header: 'Product name', value: (v) => v.product.name, width: 32 },
   { header: 'Type', value: (v) => v.product.productType?.name ?? typeLabels[v.product.type], width: 14 },
   { header: 'Category', value: (v) => (v.product.category.parent ? `${v.product.category.parent.name} > ${v.product.category.name}` : v.product.category.name), width: 30 },
+  { header: 'Supplier', value: (v) => v.supplierName, width: 24 },
   { header: 'Unit', value: (v) => v.product.unit.code, width: 8 },
   { header: 'HSN', value: (v) => v.product.hsnCode, width: 10 },
   { header: 'GST %', value: (v) => v.product.taxRate?.rate, type: 'number', width: 8 },
@@ -89,10 +94,11 @@ const masterColumns: Record<MasterKey, ExcelColumn<MasterRow>[]> = {
   sizes: [{ header: 'Name', value: (r) => r.name }, { header: 'Sort order', value: (r) => r.sortOrder, type: 'number' }],
   colours: [{ header: 'Name', value: (r) => r.name }, { header: 'Colour code', value: (r) => r.hexCode ?? 'Multicolour', width: 14 }],
   taxRates: [{ header: 'Name', value: (r) => r.name }, { header: 'Rate %', value: (r) => r.rate, type: 'number', width: 10 }],
+  workCharges: [{ header: 'Work', value: (r) => r.name, width: 30 }, { header: 'Amount to brand', value: (r) => r.rate, type: 'money', width: 16 }, { header: 'Pay to worker', value: (r) => r.labourRate, type: 'money', width: 14 }],
 }
 
 const masterTitles: Record<MasterKey, string> = {
-  productTypes: 'Product types', categories: 'Categories', brands: 'Brands', units: 'Units', sizes: 'Sizes', colours: 'Colours', taxRates: 'GST rates',
+  productTypes: 'Product types', categories: 'Categories', brands: 'Brands', units: 'Units', sizes: 'Sizes', colours: 'Colours', taxRates: 'GST rates', workCharges: 'Work charges',
 }
 
 export async function exportMaster(res: Response, key: MasterKey, q: ListQuery, user: string) {

@@ -35,6 +35,7 @@ export const productSchema = z.object({
   type: z.enum(productTypes).optional(),
   categoryId: z.coerce.number({ error: 'Choose a category' }).int().positive('Choose a category'),
   brandId: optionalId,
+  supplierId: optionalId, // usual supplier (optional)
   unitId: z.coerce.number({ error: 'Choose a unit' }).int().positive('Choose a unit'),
   taxRateId: optionalId,
   hsnCode: z
@@ -59,6 +60,7 @@ export const productListSchema = z.object({
   productTypeId: z.coerce.number().int().positive().optional(),
   categoryId: z.coerce.number().int().positive().optional(), // main category includes its subcategories
   brandId: z.coerce.number().int().positive().optional(),
+  supplierId: z.coerce.number().int().positive().optional(),
   status: z.enum(['all', 'active', 'inactive']).default('all'),
   page: z.coerce.number().int().min(1).default(1),
   pageSize: z.coerce.number().int().min(1).max(100).default(20),

@@ -30,16 +30,18 @@ async function resolveType(input: ProductInput) {
 }
 
 async function checkMasters(input: ProductInput) {
-  const [category, unit, brand, tax] = await Promise.all([
+  const [category, unit, brand, tax, supplier] = await Promise.all([
     prisma.category.findUnique({ where: { id: input.categoryId } }),
     prisma.unit.findUnique({ where: { id: input.unitId } }),
     input.brandId ? prisma.brand.findUnique({ where: { id: input.brandId } }) : null,
     input.taxRateId ? prisma.taxRate.findUnique({ where: { id: input.taxRateId } }) : null,
+    input.supplierId ? prisma.supplier.findUnique({ where: { id: input.supplierId }, select: { id: true } }) : null,
   ])
   if (!category) throw ApiError.badRequest('Selected category no longer exists')
   if (!unit) throw ApiError.badRequest('Selected unit no longer exists')
   if (input.brandId && !brand) throw ApiError.badRequest('Selected brand no longer exists')
   if (input.taxRateId && !tax) throw ApiError.badRequest('Selected GST rate no longer exists')
+  if (input.supplierId && !supplier) throw ApiError.badRequest('Selected supplier no longer exists')
 }
 
 function checkVariantShape(input: ProductInput) {

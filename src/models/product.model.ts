@@ -12,6 +12,7 @@ const variantInclude = {
 export const productDetailInclude = {
   category: { select: { id: true, name: true, parentId: true, parent: { select: { name: true } } } },
   brand: { select: { id: true, name: true } },
+  supplier: { select: { id: true, name: true } },
   productType: { select: { id: true, name: true, kind: true } },
   unit: { select: { id: true, name: true, code: true, allowDecimal: true } },
   taxRate: { select: { id: true, name: true, rate: true } },
@@ -23,6 +24,8 @@ export function listWhere(q: ProductListQuery): Prisma.ProductWhereInput {
   if (q.type) where.type = q.type
   if (q.productTypeId) where.productTypeId = q.productTypeId
   if (q.brandId) where.brandId = q.brandId
+  // Picked on the product, or bought from them on a purchase bill.
+  if (q.supplierId) where.AND = [{ OR: [{ supplierId: q.supplierId }, { variants: { some: { purchaseLines: { some: { invoice: { supplierId: q.supplierId, status: 'POSTED' } } } } } }] }]
   if (q.status !== 'all') where.isActive = q.status === 'active'
   if (q.categoryId) {
     where.OR = [{ categoryId: q.categoryId }, { category: { parentId: q.categoryId } }]
@@ -31,6 +34,7 @@ export function listWhere(q: ProductListQuery): Prisma.ProductWhereInput {
     // Name uses the trigram index; code / SKU / barcode are exact (unique indexes).
     const s = q.search
     where.AND = [
+      ...((where.AND as Prisma.ProductWhereInput[] | undefined) ?? []),
       {
         OR: [
           { name: { contains: s, mode: 'insensitive' } },
@@ -60,6 +64,7 @@ export async function list(q: ProductListQuery) {
         isActive: true,
         category: { select: { name: true, parent: { select: { name: true } } } },
         brand: { select: { name: true } },
+        supplier: { select: { name: true } },
         productType: { select: { id: true, name: true, kind: true } },
         unit: { select: { code: true } },
         variants: { select: { sellingPrice: true, stockQty: true, stockValue: true } },

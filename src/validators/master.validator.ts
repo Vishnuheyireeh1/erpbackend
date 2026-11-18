@@ -51,6 +51,13 @@ export const masterSchemas = {
       .max(100, 'Rate must be 100 or less'),
     isActive,
   }),
+  // Work on brand order lines without a garment (Saree bleeding …): usual amount to the brand + pay to the worker.
+  workCharges: z.object({
+    name: name(120),
+    rate: z.coerce.number({ error: 'Enter the amount' }).min(0, "Amount can't be negative").max(9_999_999).default(0),
+    labourRate: z.coerce.number().min(0, "Pay can't be negative").max(9_999_999).default(0),
+    isActive,
+  }),
 }
 
 export type MasterKey = keyof typeof masterSchemas

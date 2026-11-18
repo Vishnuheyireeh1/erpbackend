@@ -87,4 +87,11 @@ export const masterRegistry: Record<MasterKey, MasterConfig> = {
     uniqueNumber: ['rate'],
     orderBy: [{ rate: 'asc' }],
   },
+  workCharges: {
+    label: 'Work charge',
+    delegate: d(prisma.workCharge),
+    inUse: masterUsage.workCharges,
+    uniqueText: ['name'],
+    orderBy: [{ name: 'asc' }],
+  },
 }

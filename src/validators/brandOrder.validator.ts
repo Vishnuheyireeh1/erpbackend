@@ -17,7 +17,8 @@ export const materialLines = z.array(materialLine).max(30, 'Too many items for o
 
 const piece = z.object({
   id: z.coerce.number().int().positive().optional(), // existing piece when editing
-  garmentTypeId: z.coerce.number({ error: 'Choose the garment' }).int().positive('Choose the garment'),
+  // Empty = a work-only line (Saree bleeding …): then the description is the work.
+  garmentTypeId: z.coerce.number().int().positive('Choose the garment').nullish().transform((v) => v ?? null),
   description: optional(200),
   endCustomer: optional(120),
   qty: z.coerce.number().int('Pieces must be a whole number').min(1, 'At least 1 piece').max(500),
@@ -33,7 +34,7 @@ const piece = z.object({
   // Additional charges (Sarifal, Interlock …), billed with the piece.
   charges: z.array(z.object({ name: z.string().trim().min(1, 'Name the charge').max(120), qty: z.coerce.number().positive('Enter the quantity').max(9_999), rate: money })).max(30, 'Too many charges for one piece').default([]),
   materials: materialLines.default([]), // new pieces only (later: add / remove on the order page)
-})
+}).refine((p) => p.garmentTypeId || p.description, { message: 'Choose the garment or write the work', path: ['description'] })
 
 const orderBase = {
   theirOrderNo: optional(40),

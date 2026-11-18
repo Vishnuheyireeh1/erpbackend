@@ -28,4 +28,6 @@ export const masterUsage = {
     usedBy(await prisma.productVariant.count({ where: { sizeId: id } }), 'product variant'),
   colours: async (id: number) =>
     usedBy(await prisma.productVariant.count({ where: { colourId: id } }), 'product variant'),
+  // Order lines keep the work's name as text, so a saved work charge can always be deleted.
+  workCharges: async () => null,
 }

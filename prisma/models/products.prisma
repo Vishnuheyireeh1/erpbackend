@@ -38,6 +38,9 @@ model Product {
   brand         Brand?             @relation(fields: [brandId], references: [id], onDelete: Restrict)
   unitId        Int                @map("unit_id")
   unit          Unit               @relation(fields: [unitId], references: [id], onDelete: Restrict)
+  /// Usual supplier (optional). Deleting the supplier just clears it.
+  supplierId    Int?               @map("supplier_id")
+  supplier      Supplier?          @relation(fields: [supplierId], references: [id], onDelete: SetNull)
   taxRateId     Int?               @map("tax_rate_id")
   taxRate       TaxRate?           @relation(fields: [taxRateId], references: [id], onDelete: Restrict)
   hsnCode       String?            @map("hsn_code") @db.VarChar(8)
@@ -55,6 +58,7 @@ model Product {
   @@index([brandId])
   @@index([type])
   @@index([productTypeId])
+  @@index([supplierId])
   @@map("products")
 }
 

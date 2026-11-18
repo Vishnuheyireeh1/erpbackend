@@ -55,8 +55,8 @@ model BrandOrderItem {
   id            Int             @id @default(autoincrement())
   orderId       Int             @map("order_id")
   order         BrandOrder      @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  garmentTypeId Int             @map("garment_type_id")
-  garmentType   GarmentType     @relation(fields: [garmentTypeId], references: [id], onDelete: Restrict)
+  garmentTypeId Int?            @map("garment_type_id") // empty = work only (Saree bleeding …), description = the work
+  garmentType   GarmentType?    @relation(fields: [garmentTypeId], references: [id], onDelete: Restrict)
   description   String          @db.VarChar(200)
   endCustomer   String?         @map("end_customer") @db.VarChar(120) // the brand's customer this piece is for
   qty           Int             @default(1)
@@ -153,4 +153,18 @@ model BrandOrderCost {
   @@index([date])
   @@index([tailorId])
   @@map("brand_order_costs")
+}
+
+/// Saved work for brand order lines without a garment (Saree bleeding, Fall & pico …) — Masters → Work charges.
+/// Picking one fills its usual amount to the brand and pay to the worker.
+model WorkCharge {
+  id         Int      @id @default(autoincrement())
+  name       String   @unique @db.VarChar(120)
+  rate       Decimal  @default(0) @db.Decimal(12, 2) // usual amount to the brand, GST included
+  labourRate Decimal  @default(0) @map("labour_rate") @db.Decimal(12, 2) // usual pay to the worker
+  isActive   Boolean  @default(true) @map("is_active")
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  @@map("work_charges")
 }
