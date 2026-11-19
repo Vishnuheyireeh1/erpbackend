@@ -3,6 +3,8 @@ import type { ZodType } from 'zod'
 import * as costs from '../services/jobs/job.costs'
 import { setWorkers as assignWorkers } from '../services/jobs/job.workers'
 import * as material from '../services/jobs/job.material'
+import { setJobItemMeasurements } from '../services/workshop/itemMeasurements'
+import type { ItemMeasurementsInput } from '../validators/workshop.validator'
 import { jobPdf } from '../services/jobs/job.pdf'
 import { chargeKinds as usedChargeKinds, getJob, listJobs } from '../services/jobs/job.query'
 import * as jobService from '../services/jobs/job.service'
@@ -59,6 +61,7 @@ export async function measuredBy(req: Request, res: Response) {
   if (staffId !== null && (!Number.isInteger(staffId) || staffId <= 0)) throw ApiError.badRequest('Choose the staff member')
   res.json({ success: true, item: await material.setMeasuredBy(readId(req), readId(req, 'itemId'), staffId, user(req)) })
 }
+export const measurements = async (req: Request, res: Response) => ok(res, await setJobItemMeasurements(readId(req), readId(req, 'itemId'), req.body as ItemMeasurementsInput, user(req)))
 export async function uploadPhoto(req: Request, res: Response) {
   if (!req.file) throw ApiError.badRequest('Choose a photo')
   res.json({ success: true, imagePath: await material.setItemPhoto(readId(req), readId(req, 'itemId'), req.file.buffer, user(req)) })

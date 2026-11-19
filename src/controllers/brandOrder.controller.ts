@@ -5,6 +5,8 @@ import { getOrder, listOrders } from '../services/brands/brandOrder.query'
 import * as orders from '../services/brands/brandOrder.service'
 import { setWorkers as setWorkersOf } from '../services/brands/brandOrder.workers'
 import { exportBrandOrders } from '../services/export/brand.export'
+import { setBrandItemMeasurements } from '../services/workshop/itemMeasurements'
+import type { ItemMeasurementsInput } from '../validators/workshop.validator'
 import { ApiError } from '../utils/ApiError'
 import { brandOrderListSchema, type BrandCostInput, type BrandOrderCreateInput, type BrandOrderUpdateInput, type BrandWorkersInput } from '../validators/brandOrder.validator'
 
@@ -22,6 +24,7 @@ function listQuery(req: Request) {
 }
 const user = (req: Request) => req.admin!.username
 
+export const measurements = async (req: Request, res: Response) => res.json({ success: true, item: await setBrandItemMeasurements(readId(req), readId(req, 'itemId'), req.body as ItemMeasurementsInput, user(req)) })
 export const list = async (req: Request, res: Response) => res.json({ success: true, ...(await listOrders(listQuery(req))) })
 export const exportList = (req: Request, res: Response) => exportBrandOrders(res, listQuery(req), user(req))
 export const setWorkers = async (req: Request, res: Response) => {

@@ -67,6 +67,12 @@ export type GarmentInput = z.infer<typeof garmentSchema>
 export const garmentChargeSchema = z.object({ name: z.string({ error: 'Enter the charge name' }).trim().min(1, 'Enter the charge name').max(40, 'Charge names can be at most 40 letters'), rate: money.default(0) })
 export type MeasurementInput = z.infer<typeof measurementSchema>
 
+// Measurements of one garment on a job / brand order, added or corrected after booking.
+export const itemMeasurementsSchema = z.object({
+  measurements: z.record(fieldLabel, z.string().trim().max(20, 'A measurement can be at most 20 characters')).default({}),
+})
+export type ItemMeasurementsInput = z.infer<typeof itemMeasurementsSchema>
+
 export const tailorPaymentSchema = z.object({
   tailorId: z.coerce.number({ error: 'Choose the tailor' }).int().positive('Choose the tailor'),
   docDate: date('Date').optional(),

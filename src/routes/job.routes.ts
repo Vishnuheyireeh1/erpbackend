@@ -3,6 +3,7 @@ import * as job from '../controllers/job.controller'
 import { singleImage } from '../middlewares/upload.middleware'
 import { validateBody } from '../middlewares/validate.middleware'
 import { bookNoSchema } from '../validators/sales.validator'
+import { itemMeasurementsSchema } from '../validators/workshop.validator'
 import { jobAddItemsSchema, jobCostEntrySchema, jobWorkersSchema, jobCreateSchema, jobDeliverSchema, jobStatusSchema, jobUpdateSchema } from '../validators/job.validator'
 
 // /api/jobs — stitching jobs
@@ -25,6 +26,7 @@ router.delete('/:id/costs/:eid', job.removeCost)
 router.put('/:id/workers', validateBody(jobWorkersSchema), job.setWorkers)
 router.put('/:id/book-no', validateBody(bookNoSchema), job.setBookNo)
 router.post('/:id/items/:itemId/measured-by', job.measuredBy)
+router.put('/:id/items/:itemId/measurements', validateBody(itemMeasurementsSchema), job.measurements)
 router.post('/:id/items/:itemId/photo', singleImage, job.uploadPhoto)
 router.delete('/:id/items/:itemId/photo', job.removePhoto)
 

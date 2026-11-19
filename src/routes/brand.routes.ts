@@ -4,6 +4,7 @@ import * as money from '../controllers/brandMoney.controller'
 import * as order from '../controllers/brandOrder.controller'
 import { validateBody } from '../middlewares/validate.middleware'
 import { brandSchema } from '../validators/brand.validator'
+import { itemMeasurementsSchema } from '../validators/workshop.validator'
 import { brandClothSchema, brandDeliverSchema, brandDocCancelSchema, brandPaymentSchema } from '../validators/brandBill.validator'
 import { brandWorkersSchema, brandCancelSchema, brandCostSchema, brandTailorSchema, brandMaterialAddSchema, brandOrderCreateSchema, brandOrderUpdateSchema, brandStageSchema } from '../validators/brandOrder.validator'
 
@@ -30,6 +31,7 @@ brandOrderRoutes.post('/:id/cancel', validateBody(brandCancelSchema), order.canc
 brandOrderRoutes.post('/:id/materials', validateBody(brandMaterialAddSchema), order.addMaterials)
 brandOrderRoutes.delete('/:id/materials/:materialId', order.removeMaterial)
 brandOrderRoutes.post('/:id/items/:itemId/tailor', validateBody(brandTailorSchema), order.setTailor)
+brandOrderRoutes.put('/:id/items/:itemId/measurements', validateBody(itemMeasurementsSchema), order.measurements)
 brandOrderRoutes.post('/:id/workers', validateBody(brandWorkersSchema), order.setWorkers)
 brandOrderRoutes.post('/:id/costs', validateBody(brandCostSchema), order.addCost)
 brandOrderRoutes.delete('/:id/costs/:costId', order.removeCost)
