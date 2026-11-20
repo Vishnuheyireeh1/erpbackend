@@ -76,7 +76,9 @@ export async function removeCostEntry(jobId: number, entryId: number, user: stri
 }
 
 // Garment's usual costs per piece (e.g. Churidar: Cutting master ₹140) → cost entries for NEW garment lines.
-export async function autoEntriesTx(tx: Tx, jobId: number, items: { id: number; garmentTypeId: number; qty: number; description: string }[], date: Date, user: string) {
+export async function autoEntriesTx(tx: Tx, jobId: number, all: { id: number; garmentTypeId: number | null; qty: number; description: string }[], date: Date, user: string) {
+  // Work-only lines (no garment) have no usual costs.
+  const items = all.filter((i): i is typeof i & { garmentTypeId: number } => i.garmentTypeId !== null)
   if (!items.length) return
   const defaults = await tx.garmentCostDefault.findMany({
     where: { garmentTypeId: { in: [...new Set(items.map((i) => i.garmentTypeId))] }, rate: { gt: 0 }, category: { isActive: true } },

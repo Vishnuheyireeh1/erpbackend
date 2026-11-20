@@ -17,12 +17,13 @@ export async function setJobItemMeasurements(jobId: number, itemId: number, inpu
   const item = await prisma.jobItem.findFirst({ where: { id: itemId, jobId }, include: { job: { select: { docNo: true, status: true, customerId: true } }, garmentType: { select: { name: true } } } })
   if (!item) throw ApiError.notFound('Garment line not found')
   if (item.job.status === 'CANCELLED') throw ApiError.conflict(`${item.job.docNo} is cancelled`)
+  if (!item.garmentTypeId) throw ApiError.badRequest(`${item.description} is work without a garment — it has no measurements`)
   const values = clean(input.measurements)
   const { date } = toDocDate(undefined)
   await prisma.$transaction(async (tx) => {
     await tx.jobItem.update({ where: { id: itemId }, data: { measurements: values } })
     if (filled(values)) {
-      await tx.customerMeasurement.create({ data: { customerId: item.job.customerId, garmentTypeId: item.garmentTypeId, values, takenOn: date, notes: `From ${item.job.docNo}`, createdBy: user } })
+      await tx.customerMeasurement.create({ data: { customerId: item.job.customerId, garmentTypeId: item.garmentTypeId!, values, takenOn: date, notes: `From ${item.job.docNo}`, createdBy: user } })
     }
     await audit(tx, { actor: user, action: 'job.measurements', entity: 'job', entityId: jobId, summary: `${item.job.docNo}: ${item.description} measurements saved (${filled(values)} filled)` })
   })

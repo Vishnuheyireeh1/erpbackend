@@ -14,7 +14,8 @@ const tender = z.object({
 
 const item = z.object({
   id: z.coerce.number().int().positive().optional(), // existing line when editing
-  garmentTypeId: z.coerce.number({ error: 'Choose the garment' }).int().positive('Choose the garment'),
+  // Empty = a work-only line (Saree fall & pico …): then the description is the work.
+  garmentTypeId: z.coerce.number().int().positive('Choose the garment').nullish().transform((v) => v ?? null),
   description: optional(200),
   qty: z.coerce.number().int('Pieces must be a whole number').min(1, 'At least 1 piece').max(500),
   chargeRate: money,
@@ -24,7 +25,7 @@ const item = z.object({
   instructions: optional(1000),
   ownFabric: z.boolean().default(false),
   measuredById: z.coerce.number().int().positive().nullish().transform((v) => v ?? null), // staff who measured (optional)
-})
+}).refine((i) => i.garmentTypeId || i.description, { message: 'Choose the garment or write the work', path: ['description'] })
 
 // Extra charge on the customer's bill (embroidery ₹500 …). What the shop spends is a job cost entry.
 const cost = z.object({

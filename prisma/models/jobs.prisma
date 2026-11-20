@@ -69,8 +69,8 @@ model JobItem {
   id            Int            @id @default(autoincrement())
   jobId         Int            @map("job_id")
   job           StitchingJob   @relation(fields: [jobId], references: [id], onDelete: Cascade)
-  garmentTypeId Int            @map("garment_type_id")
-  garmentType   GarmentType    @relation(fields: [garmentTypeId], references: [id], onDelete: Restrict)
+  garmentTypeId Int?           @map("garment_type_id") // empty = work only (Saree fall & pico …), description = the work
+  garmentType   GarmentType?   @relation(fields: [garmentTypeId], references: [id], onDelete: Restrict)
   description   String         @db.VarChar(200)
   qty           Int            @default(1)
   chargeRate    Decimal        @map("charge_rate") @db.Decimal(12, 2) // per piece to the customer, GST included

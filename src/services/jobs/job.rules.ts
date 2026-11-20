@@ -9,7 +9,7 @@ const r2 = (n: number) => Math.round(n * 100) / 100
 
 // Garments and tailors used on a job must exist; NEW lines need active ones.
 export async function loadRefs(items: JobItemInput[], existingIds: Set<number> = new Set()) {
-  const garmentIds = [...new Set(items.map((i) => i.garmentTypeId))]
+  const garmentIds = [...new Set(items.map((i) => i.garmentTypeId).filter((x): x is number => !!x))]
   const tailorIds = [...new Set(items.map((i) => i.tailorId).filter((x): x is number => !!x))]
   const [garments, tailors] = await Promise.all([
     prisma.garmentType.findMany({ where: { id: { in: garmentIds } }, select: { id: true, name: true, isActive: true } }),
@@ -18,16 +18,18 @@ export async function loadRefs(items: JobItemInput[], existingIds: Set<number> =
   const g = new Map(garments.map((x) => [x.id, x]))
   const t = new Map(tailors.map((x) => [x.id, x]))
   for (const i of items) {
-    const garment = g.get(i.garmentTypeId)
-    if (!garment) throw ApiError.badRequest('A garment type on the job no longer exists')
-    if (!garment.isActive && !(i.id && existingIds.has(i.id))) throw ApiError.badRequest(`${garment.name} is inactive`)
+    if (i.garmentTypeId) { // work-only lines have no garment
+      const garment = g.get(i.garmentTypeId)
+      if (!garment) throw ApiError.badRequest('A garment type on the job no longer exists')
+      if (!garment.isActive && !(i.id && existingIds.has(i.id))) throw ApiError.badRequest(`${garment.name} is inactive`)
+    }
     if (i.tailorId) {
       const tailor = t.get(i.tailorId)
       if (!tailor) throw ApiError.badRequest('A tailor on the job no longer exists')
       if (!tailor.isActive && !(i.id && existingIds.has(i.id))) throw ApiError.badRequest(`Tailor ${tailor.name} is inactive`)
     }
   }
-  return { garmentName: (id: number) => g.get(id)!.name }
+  return { garmentName: (id: number | null) => (id ? g.get(id)!.name : 'Work') }
 }
 
 // Job row locked for the rest of the transaction; only open jobs can change.
@@ -60,7 +62,7 @@ export async function recalcJobTx(tx: Tx, id: number) {
 }
 
 // Item rows for create / update (measurements are the copy taken now).
-export function itemData(i: JobItemInput, index: number, garmentName: (id: number) => string) {
+export function itemData(i: JobItemInput, index: number, garmentName: (id: number | null) => string) {
   return {
     garmentTypeId: i.garmentTypeId,
     description: i.description ?? garmentName(i.garmentTypeId),

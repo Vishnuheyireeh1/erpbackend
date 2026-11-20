@@ -80,7 +80,7 @@ export async function updateJob(id: number, input: JobUpdateInput, user: string)
     const before = await lockOpenJob(tx, id)
     await syncAutoEntriesTx(tx, input.items.filter((i) => i.id).map((i) => ({ id: i.id!, qty: i.qty })), removed.map((r) => r.id))
     await tx.jobItem.deleteMany({ where: { jobId: id, id: { in: removed.map((r) => r.id) } } })
-    const added: { id: number; garmentTypeId: number; qty: number; description: string }[] = []
+    const added: { id: number; garmentTypeId: number | null; qty: number; description: string }[] = []
     for (const [k, i] of input.items.entries()) {
       const data = itemData(i, k, refs.garmentName)
       if (i.id) await tx.jobItem.update({ where: { id: i.id }, data })

@@ -43,7 +43,7 @@ async function stitching(map: Map<string, Acc>, from: string, to: string) {
     })
     const share = shares(j.items.map((i) => i.qty * Number(i.chargeRate)))
     j.items.forEach((i, n) => {
-      const a = bucket(map, 'STITCHING', i.garmentType.name)
+      const a = bucket(map, 'STITCHING', i.garmentType?.name ?? i.description)
       a.pieces += i.qty
       a.total += cost.charged * share[n]
       a.tailor += i.qty * Number(i.labourRate)

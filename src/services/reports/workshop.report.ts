@@ -74,7 +74,8 @@ export async function jobProfit(q: { from?: string; to?: string }) {
       profit: r2(charged - jobCost), marginPct: charged > 0 ? r2(((charged - jobCost) / charged) * 100) : 0,
     })
     for (const i of j.items) {
-      const g = byGarment.get(i.garmentType.name) ?? { garment: i.garmentType.name, pieces: 0, charge: 0, labour: 0 }
+      const name = i.garmentType?.name ?? i.description
+      const g = byGarment.get(name) ?? { garment: name, pieces: 0, charge: 0, labour: 0 }
       g.pieces += i.qty
       g.charge += i.qty * Number(i.chargeRate)
       g.labour += i.qty * Number(i.labourRate)
